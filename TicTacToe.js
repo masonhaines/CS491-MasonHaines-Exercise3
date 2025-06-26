@@ -32,7 +32,8 @@
     const statusText = document.querySelector("#statusText");  // query select the h3 header with id statusText
     const clearButton = document.querySelector("#clearButton"); // query select the button with id clearButton
     const startButton = document.querySelector("#startButton"); // query select the button with id startButton
-    const changePlayerButton = document.querySelector("#changePlayerButton"); // query select the button with id ChangePlayerButton
+    const playerDiceRollGuessInput = document.querySelector("#diceInput"); // query select the input for the dice roll guess
+    const rollDiceButton = document.querySelector("#RollDice"); // query select the button for rolling the dice
 
 
     const winConditions = [
@@ -49,12 +50,47 @@
     ];
 
     let options = ["", "", "", "", "", "", "", "", "" ];
-    let currentPlayer = "X";
+    let currentPlayer = "O";
     let running = false;
-    let handicapUsed = false;
-    let computerIsFirstPlayer = false;
+    let firstGame = false; // used to determine if the game is being played for the first time
+    let playerNumber = 1; // current player number, does not dictate who goes first, just used to keep track of the player number
+
+
+    let fileHandle, contents;
 
     startGame();
+
+    function createGameStateWithiFilePicker() {
+        
+        startButton.addEventListener("click", async () => {
+            [fileHandle] = await window.showOpenFilePicker(); // this will open the file picker dialog to select a file
+            if (!fileHandle) {
+                alert("No file selected. Please select a file to save the game state. OR press esc to cancel.");
+                let leave = (event) => {
+                    if (event.keyCode === 27) {
+                        // document.removeEventListener("keydown", leave);
+                        return;
+                    }
+                };
+                document.addEventListener("keydown", leave);
+                createGameStateWithiFilePicker(); // recursively call the function to prompt the user again
+            }
+
+
+        });
+    }
+
+
+    async function saveGameStateToFile() {
+        // this is to save the file to the file system
+        const gameStateFile = await fileHandle.createWritable();
+        contents = {"test": "test"}; // this is just a placeholder for the game state, it will be replaced with the actual game state
+        await gameStateFile.write(contents);
+        await gameStateFile.close();
+    }
+
+
+
     
     /**
      * prompts user to start a new game and initializes the start button to have an event listener for click
@@ -63,17 +99,38 @@
 
     function startGame() {
 
-        displayFirstPlayerMessage();
+        createGameStateWithiFilePicker(); // create game state with file picker
+
+        displayStartMessage(); // display the player message to enter a number and roll dice
+        // displayFirstPlayerMessage();
         startButton.addEventListener("click", initGame);
         ChooseStartingPlayer();
     }
 
     /**
-     * chnages the first player that can move 
+     * this function does not dictate whow goes first, it is used to set the player number
+     * it is used to keep track of the player who entered the game first
+     * if the player enters the game first they will be player 1, the computer will be player 2
      */
-    function ChooseStartingPlayer() {
 
-        changePlayerButton.addEventListener("click", changePlayer);
+    function setPlayerNumber() {
+
+    }
+
+
+    /**
+     * 
+     */
+    function ChooseStartingPlayerByRollingDice() {
+        let playerGuess = parseInt(playerDiceRollGuessInput.value); // get the players guess from the input field
+        if (isNaN(playerGuess) || playerGuess < 1 || playerGuess > 6) {
+            alert("Please enter a valid number between 1 and 6.");
+            return;
+        }
+
+        let diceRollValue = Math.floor(Math.random() * 6) + 1; // simulate a dice roll between 1 and 6
+        alert('Value of rolled dice:' + diceRollValue);
+
     }
 
     /**
@@ -86,13 +143,18 @@
 
         if(!running) {
             running = true;
+            changeBoardVisibility(); // show the game board
+
+            if (!firstGame) {
+                firstGame = true; // set first game to true so that the handicap can be used
+            }
         }
         
         displayCurrentPlayerForStatusText();
         initCells();
         enableClearButton();
         startButton.removeEventListener("click", initGame);  // create event listener for start button to begin a new game 
-        changePlayerButton.removeEventListener("click", changePlayer);
+        
     }
 
     /**
@@ -174,26 +236,29 @@
     function changePlayer() {
         // console.trace();
 
-        if (!handicapUsed && running) {
-            handicapUsed = true;
+        if (running) {
             initCells();
-            return;
         }
 
-        if (currentPlayer == "X") {
-            currentPlayer = "O";
-        } else {
+        if (currentPlayer == "O") {
             currentPlayer = "X";
+        } else {
+            currentPlayer = "O";
         }
 
-        if (!running){
-            displayFirstPlayerMessage();
-            computerIsFirstPlayer = !computerIsFirstPlayer;
-            return;
-        }
+   
+        displayFirstPlayerMessage();
+ 
      
         displayCurrentPlayerForStatusText();
         initCells();
+    }
+
+    function displayStartMessage() {
+        if (!firstGame) {
+            document.querySelector(".tooltiptext").style.visibility = "visible";
+            statusText.textContent = `Please enter a number between 1 and 6 and press Roll Dice to decide who goes first!`;
+        }
     }
 
     /**
@@ -264,6 +329,19 @@
     }
 
     /**
+     * changes the visibility of the game board based on the running state
+     * if running is true, the game board is visible, otherwise it is hidden    
+     */
+
+    function changeBoardVisibility() {
+        if (running) {
+            document.getElementById("cellContainer").style.visibility = "visible"; // show the game board
+        } else {
+            document.getElementById("cellContainer").style.visibility = "hidden"; // hide the game board
+        }
+    }
+
+    /**
      * resets the game state to its initial configuration for a new match
      * sets currentPlayer to "X", clears the options array and all cell text content
      * sets running and the handicap to false and calls startGame 
@@ -271,7 +349,7 @@
 
     function restartGame () {
         
-        resetGameState();
+        changeBoardVisibility(); // hide the game board
         displayCurrentPlayerForStatusText();
         cells.forEach(cell => cell.textContent = "");
         startGame();
@@ -339,90 +417,90 @@
    
      */
 
-    function resetGameState() {
-        currentPlayer = "X";
-        options = ["", "", "", "", "", "", "", "", ""];
-        running = false;
-        handicapUsed = false;
-    }
+    // function resetGameState() {
+    //     currentPlayer = "X";
+    //     options = ["", "", "", "", "", "", "", "", ""];
+    //     running = false;
+    //     handicapUsed = false;
+    // }
 
-    /**
-     * removes event listeners for the player as well as the clear game button
-     * If the computer is has the computer is frst player boolean as true then it will run the random location picker 
-     * it will run this twice and after it has ran it twice it toggle that boolean to false and use
-     * for loop that goes through simplified minimax algorithm to create best choice for computer
-     * then function will place move check for a winner and if none re add event listeners
-     */
+    // /**
+    //  * removes event listeners for the player as well as the clear game button
+    //  * If the computer is has the computer is frst player boolean as true then it will run the random location picker 
+    //  * it will run this twice and after it has ran it twice it toggle that boolean to false and use
+    //  * for loop that goes through simplified minimax algorithm to create best choice for computer
+    //  * then function will place move check for a winner and if none re add event listeners
+    //  */
 
-    async function computerSelection() {
+    // async function computerSelection() {
 
-        let computerChoice; 
-        let bestOption = -1;
-        let bestOptionIndex = -1;
+    //     let computerChoice; 
+    //     let bestOption = -1;
+    //     let bestOptionIndex = -1;
 
-        removePlayerEventHandlers();
+    //     removePlayerEventHandlers();
 
-        if (computerIsFirstPlayer) {
-            var randomNumber = Math.floor(Math.random() * 9);
-            var randomOffset = Math.floor(Math.random() * 5);
+    //     if (computerIsFirstPlayer) {
+    //         var randomNumber = Math.floor(Math.random() * 9);
+    //         var randomOffset = Math.floor(Math.random() * 5);
 
-            await sleep(2000); // dwell computer decision for x seconds
-            for (let i = 0; i < options.length; i ++) {
+    //         await sleep(2000); // dwell computer decision for x seconds
+    //         for (let i = 0; i < options.length; i ++) {
 
-                if (options[i] == "") {
+    //             if (options[i] == "") {
 
-                    if (randomNumber === i) {
-                        computerChoice = i;
-                        break;
-                    }
-                    else if (randomNumber - i >= randomOffset && randomNumber - i >= computerChoice) {
-                        computerChoice = i;
-                    }
-                    else {
-                        computerChoice = i;
-                    }
-                }
-            }
-        }
+    //                 if (randomNumber === i) {
+    //                     computerChoice = i;
+    //                     break;
+    //                 }
+    //                 else if (randomNumber - i >= randomOffset && randomNumber - i >= computerChoice) {
+    //                     computerChoice = i;
+    //                 }
+    //                 else {
+    //                     computerChoice = i;
+    //                 }
+    //             }
+    //         }
+    //     }
 
-        if (!computerIsFirstPlayer) {
+    //     if (!computerIsFirstPlayer) {
 
-            await sleep(2000); // dwell computer decision for x seconds
+    //         await sleep(2000); // dwell computer decision for x seconds
 
-            for (let i = 0; i < options.length; i++) {
-                if (options[i] == "") {
+    //         for (let i = 0; i < options.length; i++) {
+    //             if (options[i] == "") {
 
-                    let tempOptions = [...options]; // https://www.geeksforgeeks.org/javascript/how-to-clone-an-array-in-javascript/
-                    tempOptions[i] = "X";
-                    let gradeOfX = checkForThreeInARow(true, tempOptions); // grade is the value that is being stored for the best move
+    //                 let tempOptions = [...options]; // https://www.geeksforgeeks.org/javascript/how-to-clone-an-array-in-javascript/
+    //                 tempOptions[i] = "X";
+    //                 let gradeOfX = checkForThreeInARow(true, tempOptions); // grade is the value that is being stored for the best move
 
-                    tempOptions = [...options]; 
-                    tempOptions[i] = "O";
-                    let gradeOfO = checkForThreeInARow(true, tempOptions); 
+    //                 tempOptions = [...options]; 
+    //                 tempOptions[i] = "O";
+    //                 let gradeOfO = checkForThreeInARow(true, tempOptions); 
 
-                    let gradeMAX = Math.max(gradeOfO, gradeOfX); // get the best grade from both O and X
+    //                 let gradeMAX = Math.max(gradeOfO, gradeOfX); // get the best grade from both O and X
 
-                    // grade ius then compared here and the best grade will decide the best location to move. 
-                    // if multiple locations have have the same grade moving to either will stillm create the same result
-                    if (gradeMAX > bestOption) {
-                        bestOption = gradeMAX;
-                        bestOptionIndex = i;
-                    }
-                }
-            }
+    //                 // grade ius then compared here and the best grade will decide the best location to move. 
+    //                 // if multiple locations have have the same grade moving to either will stillm create the same result
+    //                 if (gradeMAX > bestOption) {
+    //                     bestOption = gradeMAX;
+    //                     bestOptionIndex = i;
+    //                 }
+    //             }
+    //         }
 
-            computerChoice = bestOptionIndex;
-        }
+    //         computerChoice = bestOptionIndex;
+    //     }
 
-        if (handicapUsed) {
-            computerIsFirstPlayer = false;
-        }
+    //     if (handicapUsed) {
+    //         computerIsFirstPlayer = false;
+    //     }
 
-        enableClearButton();// return event listern for clear button
-        options[computerChoice] = currentPlayer;
-        cells[computerChoice].textContent = currentPlayer;
-        checkWinner();
-    }
+    //     enableClearButton();// return event listern for clear button
+    //     options[computerChoice] = currentPlayer;
+    //     cells[computerChoice].textContent = currentPlayer;
+    //     checkWinner();
+    // }
 
        /**
      * creates a delay used to pause logic for a set amount of milli seconds

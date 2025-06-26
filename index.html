@@ -15,11 +15,13 @@
     <div class = "gameContainer">
         <h1 id = "titleH1" >Tic Tac Toe</h1>
         <div class = "button-row-container"> 
-            <button type = "button" id = "startButton" >Start</button>
+            <button type = "button" id = "startButton" >Start</button> // this needs to be the start button and the clear button, only have one button for this 
             <button type = "button" id = "clearButton" >Clear</button>
             <div class = "tooltip">
-                <button type = "button" id = "changePlayerButton">Toggle First Player</button>
-                <span class="tooltiptext" >This will change who goes first.<br>You are X's<br>Computer is O's</span>
+                <input type = "number" id = "diceInput" placeholder = "Enter a number (1-6)" min = "1" max = "6">
+                <label for = "diceInput">Guess the dice roll:</label>
+                <button type = "button" id = "RollDice">Roll Dice</button>
+                <span class = "tooltiptext" >Enter a number and press roll dice. This will decide who goes first.<br>Whom ever guesses the number closest to the dice roll<br> will go first and will be "O". The other player will be "X"</span>
             </div>
             
             
