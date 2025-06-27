@@ -1,23 +1,22 @@
-/* Mason Haines 6/6/2025 */
+/* Mason Haines 6/26/2025 */
 
 /**
  * anonymous immediately invoked function that will execute immediately after being called
  * https://www.youtube.com/watch?v=SMUHorBkVsY
  */
 
-(function(){
 
-    /*****************************************************************************************
-    * *****************************************************************************************
-    * *****************************************************************************************
-    *                                    UI and DOM               
-    * *****************************************************************************************
-    * *****************************************************************************************                           
-    *****************************************************************************************/
-
+/*****************************************************************************************
+* *****************************************************************************************
+* *****************************************************************************************
+*                                    UI and DOM               
+* *****************************************************************************************
+* *****************************************************************************************                           
+*****************************************************************************************/
 
 
-    /**
+
+/**
  * @param {string} currentPlayer - the current players character will be X or O
  * @param {string[]} options - array that holds the current state of the array 
  * @param {boolean} running - the current state of the game, whether it is running or not 
@@ -28,488 +27,617 @@
  * @param {html} statusText - query select the button with id startButton
  */
 
-    const cells = document.querySelectorAll(".cell"); // query all cells on the tic tac toe board
-    const statusText = document.querySelector("#statusText");  // query select the h3 header with id statusText
-    const clearButton = document.querySelector("#clearButton"); // query select the button with id clearButton
-    const startButton = document.querySelector("#startButton"); // query select the button with id startButton
-    const playerDiceRollGuessInput = document.querySelector("#diceInput"); // query select the input for the dice roll guess
-    const rollDiceButton = document.querySelector("#RollDice"); // query select the button for rolling the dice
+const cells = document.querySelectorAll(".cell"); // query all cells on the tic tac toe board
+const statusText = document.querySelector("#statusText");  // query select the h3 header with id statusText
+const clearButton = document.querySelector("#clearButton"); // query select the button with id clearButton
+const startButton = document.querySelector("#startButton"); // query select the button with id startButton
+const playerDiceRollGuessInput = document.querySelector("#diceInput"); // query select the input for the dice roll guess
+const rollDiceButton = document.querySelector("#RollDice"); // query select the button for rolling the dice
+
+let emptyGameState = {
+    board: ["", "", "", "", "", "", "", "", "" ],
+    currentPlayer: "",
+    playerID: 0
+}
+
+let currentGameState = {
+    board: ["", "", "", "", "", "", "", "", "" ],
+    currentPlayer: "", 
+    playerID: 0
+}
+
+const winConditions = [
+
+    [0,1,2], 
+    [3,4,5],
+    [6,7,8],
+    [0,3,6],
+    [1,4,7],
+    [2,5,8],
+    [0,4,8],
+    [2,4,6]
+
+];
+
+let options = ["", "", "", "", "", "", "", "", "" ];
+let currentPlayer = "O";
+let running = false;
+let firstGame = true; // used to determine if the game is being played for the first time
+
+let fileHandle, contents;
+
+startGame();
+
+// doesnt work unless outside of function call for some reason? maybe button is not yet in the DOM?
+startButton.addEventListener("click", async () => {
+    await createGameStateWithinFilePicker(); // this will create the game state within the file picker
+    createPlayerId(); // create a player ID for the current player
+    initGame(); // proceed only after file selected
+    // ChooseStartingPlayer();
+});
+
+async function createGameStateWithinFilePicker() {
+    // https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker?utm_source=chatgpt.com
+    // Here we set the options object for passing into the method. We'll allow a selection of image file types, 
+    // with no option to allow for all files types, or multiple file selection.
+    const pickerOptions = {
+        types: [{       
+            description: 'JSON Files',
+            accept : {'application/json': ['.json']} // this will accept only json files
+        }],
+        excludeAcceptAllOption: true,
+    };
+
+    [fileHandle] = await window.showOpenFilePicker(pickerOptions); // this will open the file picker dialog to select a file
+
+    const errorBool = await catchErrorWithFilePicker(fileHandle); // this will catch any errors with the file picker
+    if (errorBool !== false) {
+        let fileData = await fileHandle.getFile(); // this will get the file data from the file handle, 
+        // Returns a Promise which resolves to a File object representing the state on disk of the entry represented by the handle.
+        // contents = await fileData.text(); // this will read the file data as text
+        // alert(contents);
+        // alert("File selected: " + fileData.name); // this will alert the user that the file has been selected
+    }
+    else {
+        alert("No file selected or an error occurred. Please refresh the page and try again.");
+        return; // if there was an error with the file picker, we will return and not proceed
+    }
+
+    initGameStateToFile(); // this will initialize the game state to the file system on a fresh game
+}
 
 
-    const winConditions = [
-
-        [0,1,2], 
-        [3,4,5],
-        [6,7,8],
-        [0,3,6],
-        [1,4,7],
-        [2,5,8],
-        [0,4,8],
-        [2,4,6]
-
-    ];
-
-    let options = ["", "", "", "", "", "", "", "", "" ];
-    let currentPlayer = "O";
-    let running = false;
-    let firstGame = false; // used to determine if the game is being played for the first time
-    let playerNumber = 1; // current player number, does not dictate who goes first, just used to keep track of the player number
+/**
+ * Creates a unique player ID for each player.  
+ * If the player ID is not set or is NaN, it will default to 1. increment the player ID by 1 if it is not already set to 1 or 2.
+ * If the player ID exceeds 2, it will alert the user and close the window.
+ * @returns {void} - this will return void if the player ID is already set to 1 or 2
+ */
 
 
-    let fileHandle, contents;
+// localStorage is partitioned by browser tabs and by origin. The main document, and all embedded browsing contexts (iframes), 
+// are grouped by their origin and each origin has access to its own separate storage area. 
+// Closing the browser tab destroys all localStorage data associated with that tab.
+async function createPlayerId() {
+    // https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
+    alert(currentGameState.playerID); 
 
-    startGame();
 
-    function createGameStateWithiFilePicker() {
-        
-        startButton.addEventListener("click", async () => {
-            [fileHandle] = await window.showOpenFilePicker(); // this will open the file picker dialog to select a file
-            if (!fileHandle) {
-                alert("No file selected. Please select a file to save the game state. OR press esc to cancel.");
-                let leave = (event) => {
-                    if (event.keyCode === 27) {
-                        // document.removeEventListener("keydown", leave);
-                        return;
-                    }
-                };
-                document.addEventListener("keydown", leave);
-                createGameStateWithiFilePicker(); // recursively call the function to prompt the user again
+    await updateLocalGameStateWithFilePicker(); 
+    // currentGameState.playerID = parseInt(localStorage.getItem("playerID")); // get the player ID from local storage, TIRED OF USING PARSEINT, WHY DOES IT ALWAYS RETURNS A STRING
+    alert("this is after init" +  currentGameState.playerID); // alert the type of player ID WHY ON EARTH IS IT ALWAYS A STRING?
+    if (currentGameState.playerID === 0) {
+        alert("player ID is not set, setting to 1"); // alert the user that the player ID is not set
+
+        currentGameState.playerID = 1;
+        await updateFileGameStateWithFilePicker();
+        alert(currentGameState.playerID); 
+
+    } 
+    else if (currentGameState.playerID < 2){ 
+        currentGameState.playerID++;
+        await updateFileGameStateWithFilePicker();
+    }
+
+    // if (currentGameState.playerID > 2) { 
+    //     alert("Player ID has reached the maximum value of 2. "); 
+    //     window.close(); // close the window if player ID exceeds 2
+    // }
+
+    // await updateFileGameStateWithFilePicker();
+
+    // alert(currentGameState.playerID); 
+
+    localStorage.setItem("playerID", currentGameState.playerID); // store the player ID in local storage
+    alert("You are currently set to player: " + currentGameState.playerID); // alert the user of their player ID
+}
+
+/**
+ * Initializes the selected file with the initial game state.
+ * Overwrites the contents of the chosen gameState.json file with an empty board and starting player.
+ * this is called when the game is first started or when a new game is created.
+ */
+
+async function initGameStateToFile() {
+    // this is to initialize the game state to the file system
+    const gameStateFile = await fileHandle.createWritable();    
+    contents = JSON.stringify(emptyGameState); // this is just a placeholder for the game state, it will be replaced with the actual game state
+    await gameStateFile.write(contents);
+    await gameStateFile.close();
+}
+
+/**
+ * in a nut shell this function will update the local game state with the file picker
+ * it is reading the file via the text method and then parsing the contents as JSON
+ */
+
+async function updateLocalGameStateWithFilePicker() {
+    // this is to update the game state with the file picker
+    alert("Updating local game state with file picker...");
+    const currentFile = await fileHandle.getFile(); // this will read the file data as text
+    contents = await currentFile.text();
+    currentGameState = JSON.parse(contents); // Converts a JavaScript Object Notation (JSON) string into an object. function definition
+}
+
+async function updateFileGameStateWithFilePicker() {
+    // this is to update the game state with the file picker
+    alert("Updating file game state with file picker...");
+    const currentFile = await fileHandle.createWritable(); // this will create a writable stream to the file
+    contents = JSON.stringify(currentGameState); // this will convert the current game state to a JSON string
+    await currentFile.write(contents); // this will write the contents to the file
+    await currentFile.close(); // this will close the file handle
+}
+
+async function catchErrorWithFilePicker(fileHandle) {
+    // this is to catch any errors with the file picker
+    if (!fileHandle) {
+        alert("No file selected or an error occurred.");
+        let leave = (event) => {
+            if (event.keyCode === 27) {
+                // document.removeEventListener("keydown", leave);
+                return;
             }
-
-
-        });
+        };
+        document.addEventListener("keydown", leave);
+        createGameStateWithinFilePicker(); // recursively call the function to prompt the user again
+        return false;
     }
 
-
-    async function saveGameStateToFile() {
-        // this is to save the file to the file system
-        const gameStateFile = await fileHandle.createWritable();
-        contents = {"test": "test"}; // this is just a placeholder for the game state, it will be replaced with the actual game state
-        await gameStateFile.write(contents);
-        await gameStateFile.close();
+    const fileData = await fileHandle.getFile();
+    if (fileData.name !== "gameState.json") {
+        alert("Wrong file selected. Please choose gameState.json.");
+                    alert("Please select a file named gamestate.json to save the game state.");
+        let leave = (event) => {
+            if (event.keyCode === 27) {
+                // document.removeEventListener("keydown", leave);
+                return;
+            }
+        };
+        document.addEventListener("keydown", leave);
+        createGameStateWithinFilePicker(); // recursively call the function to prompt the user again
+        return false;
     }
 
+    return fileData;
+}
 
+
+// async function saveNewGameStateToFile() {
+//     // this is to save the file to the file system
+//     const gameStateFile = await fileHandle.createWritable();
+//     contents = {"test": "test"}; // this is just a placeholder for the game state, it will be replaced with the actual game state
+//     await gameStateFile.write(JSON.stringify(gamestate));
+//     await gameStateFile.close();
+// }
+
+
+/**
+ * prompts user to start a new game and initializes the start button to have an event listener for click
+ * on click calls initGame to make game playable 
+ */
+
+function startGame() {
+
+    if (firstGame) {
+        firstGame = false; // set first game to false so that the handicap can be used
+    }
+
+    displayStartMessage(); // display the player message to enter a number and roll dice
+    // displayFirstPlayerMessage();
 
     
-    /**
-     * prompts user to start a new game and initializes the start button to have an event listener for click
-     * on click calls initGame to make game playable 
-     */
+}
 
-    function startGame() {
-
-        createGameStateWithiFilePicker(); // create game state with file picker
-
-        displayStartMessage(); // display the player message to enter a number and roll dice
-        // displayFirstPlayerMessage();
-        startButton.addEventListener("click", initGame);
-        ChooseStartingPlayer();
+/**
+ * 
+ */
+async function ChooseStartingPlayerByRollingDice() {
+    let playerGuess = parseInt(playerDiceRollGuessInput.value); // get the players guess from the input field
+    if (isNaN(playerGuess) || playerGuess < 1 || playerGuess > 6) {
+        alert("Please enter a valid number between 1 and 6.");
+        return;
     }
 
-    /**
-     * this function does not dictate whow goes first, it is used to set the player number
-     * it is used to keep track of the player who entered the game first
-     * if the player enters the game first they will be player 1, the computer will be player 2
-     */
+    let diceRollValue = Math.floor(Math.random() * 6) + 1; // simulate a dice roll between 1 and 6
+    alert('Value of rolled dice:' + diceRollValue);
 
-    function setPlayerNumber() {
+}
 
+/**
+ * makes game playable setting running to now true
+ * gives functionality to start a game and removes the event listener from the start button
+ * and creates and event listener for the clear button which calls restart game on click
+ */
+
+async function initGame() {
+
+    if(!running) {
+        running = true;
+        changeBoardVisibility(); // show the game board
     }
 
 
-    /**
-     * 
-     */
-    function ChooseStartingPlayerByRollingDice() {
-        let playerGuess = parseInt(playerDiceRollGuessInput.value); // get the players guess from the input field
-        if (isNaN(playerGuess) || playerGuess < 1 || playerGuess > 6) {
-            alert("Please enter a valid number between 1 and 6.");
-            return;
-        }
+    await rollDiceButton.addEventListener("click", ChooseStartingPlayerByRollingDice); // add event listener to roll dice button
+    displayCurrentPlayerForStatusText();
+    initCells();
+    enableClearButton();
+    startButton.removeEventListener("click", initGame);  // create event listener for start button to begin a new game 
+    
+}
 
-        let diceRollValue = Math.floor(Math.random() * 6) + 1; // simulate a dice roll between 1 and 6
-        alert('Value of rolled dice:' + diceRollValue);
+/**
+ * adds event listener to clear button, is used if game is running 
+ * is called in init game and computer selection
+ */
 
+function enableClearButton() {
+
+    if(running){
+        // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
+        clearButton.addEventListener("click", restartGame);
+    }
+}
+
+/**
+ * function essentially alows either the player or computer to make a move depending on the currentplayer string 
+ * helper function to re init the cells object adding the event listern for clicked 
+ * additonally resetting the color of the text content color of the cells 
+ */
+
+function initCells() {
+
+    if (currentPlayer === "X") {
+        cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener) 
+    }
+    else if (currentPlayer === "O") {
+        computerSelection();
+    }
+    
+    cells.forEach(color => color.style.color = "black"); // reset color for all cell text content
+}
+
+/**
+ * event handler for when a cell is clicked during gameplay
+ * gets the clicked cell index, prevents moves if cell is taken or game is not running
+ * updates the cell with user's choice and checks for a win condition
+ * @param {MouseEvent} event - web browser provided object that gives us feedback when mouse action is provided
+ * for this instance we are looking for a cellindex to be clicked
+ */
+
+function cellClicked(event) {
+
+    const cellIndex = event.target.getAttribute("cellIndex"); // this refers to what ever cell is clicked on screen by user
+
+    if (options[cellIndex] != "" || !running ) {
+        return;
     }
 
-    /**
-     * makes game playable setting running to now true
-     * gives functionality to start a game and removes the event listener from the start button
-     * and creates and event listener for the clear button which calls restart game on click
-     */
+    updateUsersChoiceCell(event.target, cellIndex);
+    checkWinner();
+}
 
-    function initGame() {
+/**
+ * updates game state and UI for the selected cell that was passed by cellClicked
+ * @param {number} index - The index of the cell in the options array
+ * @param {html} cell - the cell element that was clicked during the event that was stored from cellClicked
+ */
 
-        if(!running) {
-            running = true;
-            changeBoardVisibility(); // show the game board
+function updateUsersChoiceCell (cell, index) {
 
-            if (!firstGame) {
-                firstGame = true; // set first game to true so that the handicap can be used
-            }
-        }
-        
-        displayCurrentPlayerForStatusText();
-        initCells();
-        enableClearButton();
-        startButton.removeEventListener("click", initGame);  // create event listener for start button to begin a new game 
-        
+    // options at the current index of cell clicked is being set to the current player either "X" or "O"
+    options[index] = currentPlayer;
+    if (cell) {
+        cell.textContent = currentPlayer;
     }
+}
 
-    /**
-     * adds event listener to clear button, is used if game is running 
-     * is called in init game and computer selection
-     */
+/**
+ * when this is called if the gamne is running and the handicap has not been use yet...
+ * it will call the init cells again and that player will get a secoind move 
+ * is called after a move is made by a player and toggles the current player between "x" and "O"
+ * if the current player is "O", the function calls the computer selection function
+ * at the end it updates the current player to the statusText tect content
+ * @sideEffects - updates global game state (currentPlayer), calls UI update functions,
+ * and may trigger the computer's move.
+ */
 
-    function enableClearButton() {
+function changePlayer() {
+    // console.trace();
 
-        if(running){
-            // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
-            clearButton.addEventListener("click", restartGame);
-        }
-    }
-
-    /**
-     * function essentially alows either the player or computer to make a move depending on the currentplayer string 
-     * helper function to re init the cells object adding the event listern for clicked 
-     * additonally resetting the color of the text content color of the cells 
-     */
-
-    function initCells() {
-
-        if (currentPlayer === "X") {
-            cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener) 
-        }
-        else if (currentPlayer === "O") {
-            computerSelection();
-        }
-        
-        cells.forEach(color => color.style.color = "black"); // reset color for all cell text content
-    }
-
-    /**
-     * event handler for when a cell is clicked during gameplay
-     * gets the clicked cell index, prevents moves if cell is taken or game is not running
-     * updates the cell with user's choice and checks for a win condition
-     * @param {MouseEvent} event - web browser provided object that gives us feedback when mouse action is provided
-     * for this instance we are looking for a cellindex to be clicked
-     */
-
-    function cellClicked(event) {
-
-        const cellIndex = event.target.getAttribute("cellIndex"); // this refers to what ever cell is clicked on screen by user
-
-        if (options[cellIndex] != "" || !running ) {
-            return;
-        }
-
-        updateUsersChoiceCell(event.target, cellIndex);
-        checkWinner();
-    }
-
-    /**
-     * updates game state and UI for the selected cell that was passed by cellClicked
-     * @param {number} index - The index of the cell in the options array
-     * @param {html} cell - the cell element that was clicked during the event that was stored from cellClicked
-     */
-
-    function updateUsersChoiceCell (cell, index) {
-
-        // options at the current index of cell clicked is being set to the current player either "X" or "O"
-        options[index] = currentPlayer;
-        if (cell) {
-            cell.textContent = currentPlayer;
-        }
-    }
-
-    /**
-     * when this is called if the gamne is running and the handicap has not been use yet...
-     * it will call the init cells again and that player will get a secoind move 
-     * is called after a move is made by a player and toggles the current player between "x" and "O"
-     * if the current player is "O", the function calls the computer selection function
-     * at the end it updates the current player to the statusText tect content
-     * @sideEffects - updates global game state (currentPlayer), calls UI update functions,
-     * and may trigger the computer's move.
-     */
-
-    function changePlayer() {
-        // console.trace();
-
-        if (running) {
-            initCells();
-        }
-
-        if (currentPlayer == "O") {
-            currentPlayer = "X";
-        } else {
-            currentPlayer = "O";
-        }
-
-   
-        displayFirstPlayerMessage();
- 
-     
-        displayCurrentPlayerForStatusText();
+    if (running) {
         initCells();
     }
 
-    function displayStartMessage() {
-        if (!firstGame) {
-            document.querySelector(".tooltiptext").style.visibility = "visible";
-            statusText.textContent = `Please enter a number between 1 and 6 and press Roll Dice to decide who goes first!`;
-        }
+    if (currentPlayer == "O") {
+        currentPlayer = "X";
+    } else {
+        currentPlayer = "O";
     }
 
-    /**
-     * display the current player whos turn it is to move 
-     * current player will display within the html element with statustext id 
-     */
 
-    function displayCurrentPlayerForStatusText() {
+    displayFirstPlayerMessage();
 
-        statusText.textContent = `${currentPlayer}'s turn`;
-        document.querySelector(".tooltiptext").style.visibility = "hidden";
-    }
+    
+    displayCurrentPlayerForStatusText();
+    initCells();
+}
 
-    function displayFirstPlayerMessage() {
 
-        statusText.textContent = `First Player: ${currentPlayer} - Press Start to Play!`;
+function displayStartMessage() {
+    if (!firstGame) {
         document.querySelector(".tooltiptext").style.visibility = "visible";
+        statusText.textContent = `Please enter a number between 1 and 6 and press Roll Dice to decide who goes first!`;
     }
+    // else should be the player that won the last game
+}
 
-    /**
-     * Checks for winner by calling function to check for three in a row
-     * return from three in a row is set to boolean for round won
-     * if no win but the board is full, declares a draw
-     * otherwise calls changePlayer to continue the game
-     */
+/**
+ * display the current player whos turn it is to move 
+ * current player will display within the html element with statustext id 
+ */
 
-    function checkWinner () {
-        let roundWon = false;
+function displayCurrentPlayerForStatusText() {
 
-        roundWon = checkForThreeInARow(false, options);
+    statusText.textContent = `${currentPlayer}'s turn`;
+    document.querySelector(".tooltiptext").style.visibility = "hidden";
+}
 
-        if (roundWon) {
+function displayFirstPlayerMessage() {
 
-            statusText.textContent = `${currentPlayer} wins! Press Clear to restart game`;
-            running = false;
-        }
-        else if (!options.includes("")) {
+    statusText.textContent = `First Player: ${currentPlayer} - Press Start to Play!`;
+    document.querySelector(".tooltiptext").style.visibility = "visible";
+}
 
-            statusText.textContent = `Draw! Press Clear to restart game`;
-            running = false;
-        }
-        else {
-            changePlayer();
-        }
+/**
+ * Checks for winner by calling function to check for three in a row
+ * return from three in a row is set to boolean for round won
+ * if no win but the board is full, declares a draw
+ * otherwise calls changePlayer to continue the game
+ */
+
+function checkWinner () {
+    let roundWon = false;
+
+    roundWon = checkForThreeInARow(false, options);
+
+    if (roundWon) {
+
+        statusText.textContent = `${currentPlayer} wins! Press Clear to restart game`;
+        running = false;
     }
+    else if (!options.includes("")) {
 
-    /**
-     * gets specific elements that were verified for win and then changes the text content color of those cells
-     * @param {number[]} condition - array of win elements that were the condition for winning 
-     */
-
-    function changeWinnerColors(condition) {
-                
-        cells[condition[0]].style.color = "red";
-        cells[condition[1]].style.color = "red";
-        cells[condition[2]].style.color = "red";
+        statusText.textContent = `Draw! Press Clear to restart game`;
+        running = false;
     }
-
-    /**
-     * remove event listeners for cells clicked as well,
-     * for the restart game so the player has to wait their turn 
-     * 
-     */
-
-    function removePlayerEventHandlers() {
-        cells.forEach(cell => cell.removeEventListener("click", cellClicked));
-        clearButton.removeEventListener("click", restartGame);
+    else {
+        changePlayer();
     }
+}
 
-    /**
-     * changes the visibility of the game board based on the running state
-     * if running is true, the game board is visible, otherwise it is hidden    
-     */
+/**
+ * gets specific elements that were verified for win and then changes the text content color of those cells
+ * @param {number[]} condition - array of win elements that were the condition for winning 
+ */
 
-    function changeBoardVisibility() {
-        if (running) {
-            document.getElementById("cellContainer").style.visibility = "visible"; // show the game board
-        } else {
-            document.getElementById("cellContainer").style.visibility = "hidden"; // hide the game board
-        }
+function changeWinnerColors(condition) {
+            
+    cells[condition[0]].style.color = "red";
+    cells[condition[1]].style.color = "red";
+    cells[condition[2]].style.color = "red";
+}
+
+/**
+ * remove event listeners for cells clicked as well,
+ * for the restart game so the player has to wait their turn 
+ * 
+ */
+
+function removePlayerEventHandlers() {
+    cells.forEach(cell => cell.removeEventListener("click", cellClicked));
+    clearButton.removeEventListener("click", restartGame);
+}
+
+/**
+ * changes the visibility of the game board based on the running state
+ * if running is true, the game board is visible, otherwise it is hidden    
+ */
+
+function changeBoardVisibility() {
+    if (running) {
+        document.getElementById("cellContainer").style.visibility = "visible"; // show the game board
+    } else {
+        document.getElementById("cellContainer").style.visibility = "hidden"; // hide the game board
     }
+}
 
-    /**
-     * resets the game state to its initial configuration for a new match
-     * sets currentPlayer to "X", clears the options array and all cell text content
-     * sets running and the handicap to false and calls startGame 
-     */
+/**
+ * resets the game state to its initial configuration for a new match
+ * sets currentPlayer to "X", clears the options array and all cell text content
+ * sets running and the handicap to false and calls startGame 
+ */
 
-    function restartGame () {
-        
-        changeBoardVisibility(); // hide the game board
-        displayCurrentPlayerForStatusText();
-        cells.forEach(cell => cell.textContent = "");
-        startGame();
-    }
+function restartGame () {
+    
+    changeBoardVisibility(); // hide the game board
+    displayCurrentPlayerForStatusText();
+    cells.forEach(cell => cell.textContent = "");
+    startGame();
+}
 
-    /*****************************************************************************************
-    * *****************************************************************************************
-    * *****************************************************************************************
-    *                                         LOGIC           
-    * *****************************************************************************************
-    * *****************************************************************************************                          
-    *****************************************************************************************/
+/*****************************************************************************************
+* *****************************************************************************************
+* *****************************************************************************************
+*                                         LOGIC           
+* *****************************************************************************************
+* *****************************************************************************************                          
+*****************************************************************************************/
 
 
-    /**
-     * checks if a win condition is met by compring all combinations in winConditions
-     * if a win is found, highlights the winning cells and returns true to checkwinner ends the game
-     * @param {boolean} isComputer 
-     * @param {number[]} tempOptions
-     * @returns {number|boolean} - returns a best option vaie for machine move or returns true for a win condition
-     * if no win condition returnvalue is init to zero so binary false 
-     * @sideEffects - If isComputer is false and a win is found, modifies cell text color to red.
-     */
+/**
+ * checks if a win condition is met by compring all combinations in winConditions
+ * if a win is found, highlights the winning cells and returns true to checkwinner ends the game
+ * @param {boolean} isComputer 
+ * @param {number[]} tempOptions
+ * @returns {number|boolean} - returns a best option vaie for machine move or returns true for a win condition
+ * if no win condition returnvalue is init to zero so binary false 
+ * @sideEffects - If isComputer is false and a win is found, modifies cell text color to red.
+ */
 
-    function checkForThreeInARow(isComputer, thisOptions) {
+function checkForThreeInARow(isComputer, thisOptions) {
 
-        let returnValue = 0;
+    let returnValue = 0;
 
-        for(let i = 0; i < winConditions.length/*8*/; i++) {
+    for(let i = 0; i < winConditions.length/*8*/; i++) {
 
-            // so if condition is winConditions at index [0] it would be [0,1,2]
-            // lets just say the options are all still empty " "
-            // that would mean the new 3 element array, conditions, is empty at all indexes
-            // that would mean that cellA cellb and cellC are empty as well because they are initialized to the value of the option array at ....
-            // the value of the 3 element condition array and in this examplew would be [0,1,2] but could be [0,4,8] etc
+        // so if condition is winConditions at index [0] it would be [0,1,2]
+        // lets just say the options are all still empty " "
+        // that would mean the new 3 element array, conditions, is empty at all indexes
+        // that would mean that cellA cellb and cellC are empty as well because they are initialized to the value of the option array at ....
+        // the value of the 3 element condition array and in this examplew would be [0,1,2] but could be [0,4,8] etc
 
-            const condition = winConditions[i];
-            const cellA = thisOptions[condition[0]];
-            const cellB = thisOptions[condition[1]];
-            const cellC = thisOptions[condition[2]];
+        const condition = winConditions[i];
+        const cellA = thisOptions[condition[0]];
+        const cellB = thisOptions[condition[1]];
+        const cellC = thisOptions[condition[2]];
 
-            if (cellA == cellB && cellB == cellC ) {
+        if (cellA == cellB && cellB == cellC ) {
 
-                if (cellA == "" || cellB == "" || cellC == "") { continue; } // double final check
+            if (cellA == "" || cellB == "" || cellC == "") { continue; } // double final check
 
-                if (!isComputer) {
-                    changeWinnerColors(condition);
-                    return true;
-                } 
-                else {
-                    returnValue = 1;
-                }
+            if (!isComputer) {
+                changeWinnerColors(condition);
+                return true;
             } 
-        }
-
-        if (!isComputer) {
-            return false;
-        }
-
-        return returnValue;
+            else {
+                returnValue = 1;
+            }
+        } 
     }
+
+    if (!isComputer) {
+        return false;
+    }
+
+    return returnValue;
+}
+
+/**
+ * Resets the internal game state to its initial values. this is passed to restart game
+ 
+    */
+
+// function resetGameState() {
+//     currentPlayer = "X";
+//     options = ["", "", "", "", "", "", "", "", ""];
+//     running = false;
+//     handicapUsed = false;
+// }
+
+// /**
+//  * removes event listeners for the player as well as the clear game button
+//  * If the computer is has the computer is frst player boolean as true then it will run the random location picker 
+//  * it will run this twice and after it has ran it twice it toggle that boolean to false and use
+//  * for loop that goes through simplified minimax algorithm to create best choice for computer
+//  * then function will place move check for a winner and if none re add event listeners
+//  */
+
+// async function computerSelection() {
+
+//     let computerChoice; 
+//     let bestOption = -1;
+//     let bestOptionIndex = -1;
+
+//     removePlayerEventHandlers();
+
+//     if (computerIsFirstPlayer) {
+//         var randomNumber = Math.floor(Math.random() * 9);
+//         var randomOffset = Math.floor(Math.random() * 5);
+
+//         await sleep(2000); // dwell computer decision for x seconds
+//         for (let i = 0; i < options.length; i ++) {
+
+//             if (options[i] == "") {
+
+//                 if (randomNumber === i) {
+//                     computerChoice = i;
+//                     break;
+//                 }
+//                 else if (randomNumber - i >= randomOffset && randomNumber - i >= computerChoice) {
+//                     computerChoice = i;
+//                 }
+//                 else {
+//                     computerChoice = i;
+//                 }
+//             }
+//         }
+//     }
+
+//     if (!computerIsFirstPlayer) {
+
+//         await sleep(2000); // dwell computer decision for x seconds
+
+//         for (let i = 0; i < options.length; i++) {
+//             if (options[i] == "") {
+
+//                 let tempOptions = [...options]; // https://www.geeksforgeeks.org/javascript/how-to-clone-an-array-in-javascript/
+//                 tempOptions[i] = "X";
+//                 let gradeOfX = checkForThreeInARow(true, tempOptions); // grade is the value that is being stored for the best move
+
+//                 tempOptions = [...options]; 
+//                 tempOptions[i] = "O";
+//                 let gradeOfO = checkForThreeInARow(true, tempOptions); 
+
+//                 let gradeMAX = Math.max(gradeOfO, gradeOfX); // get the best grade from both O and X
+
+//                 // grade ius then compared here and the best grade will decide the best location to move. 
+//                 // if multiple locations have have the same grade moving to either will stillm create the same result
+//                 if (gradeMAX > bestOption) {
+//                     bestOption = gradeMAX;
+//                     bestOptionIndex = i;
+//                 }
+//             }
+//         }
+
+//         computerChoice = bestOptionIndex;
+//     }
+
+//     if (handicapUsed) {
+//         computerIsFirstPlayer = false;
+//     }
+
+//     enableClearButton();// return event listern for clear button
+//     options[computerChoice] = currentPlayer;
+//     cells[computerChoice].textContent = currentPlayer;
+//     checkWinner();
+// }
 
     /**
-     * Resets the internal game state to its initial values. this is passed to restart game
-   
-     */
+ * creates a delay used to pause logic for a set amount of milli seconds
+ * @param {number} ms - the number of milli seconds to delay
+ * @returns {Promise} 
+ */
 
-    // function resetGameState() {
-    //     currentPlayer = "X";
-    //     options = ["", "", "", "", "", "", "", "", ""];
-    //     running = false;
-    //     handicapUsed = false;
-    // }
-
-    // /**
-    //  * removes event listeners for the player as well as the clear game button
-    //  * If the computer is has the computer is frst player boolean as true then it will run the random location picker 
-    //  * it will run this twice and after it has ran it twice it toggle that boolean to false and use
-    //  * for loop that goes through simplified minimax algorithm to create best choice for computer
-    //  * then function will place move check for a winner and if none re add event listeners
-    //  */
-
-    // async function computerSelection() {
-
-    //     let computerChoice; 
-    //     let bestOption = -1;
-    //     let bestOptionIndex = -1;
-
-    //     removePlayerEventHandlers();
-
-    //     if (computerIsFirstPlayer) {
-    //         var randomNumber = Math.floor(Math.random() * 9);
-    //         var randomOffset = Math.floor(Math.random() * 5);
-
-    //         await sleep(2000); // dwell computer decision for x seconds
-    //         for (let i = 0; i < options.length; i ++) {
-
-    //             if (options[i] == "") {
-
-    //                 if (randomNumber === i) {
-    //                     computerChoice = i;
-    //                     break;
-    //                 }
-    //                 else if (randomNumber - i >= randomOffset && randomNumber - i >= computerChoice) {
-    //                     computerChoice = i;
-    //                 }
-    //                 else {
-    //                     computerChoice = i;
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     if (!computerIsFirstPlayer) {
-
-    //         await sleep(2000); // dwell computer decision for x seconds
-
-    //         for (let i = 0; i < options.length; i++) {
-    //             if (options[i] == "") {
-
-    //                 let tempOptions = [...options]; // https://www.geeksforgeeks.org/javascript/how-to-clone-an-array-in-javascript/
-    //                 tempOptions[i] = "X";
-    //                 let gradeOfX = checkForThreeInARow(true, tempOptions); // grade is the value that is being stored for the best move
-
-    //                 tempOptions = [...options]; 
-    //                 tempOptions[i] = "O";
-    //                 let gradeOfO = checkForThreeInARow(true, tempOptions); 
-
-    //                 let gradeMAX = Math.max(gradeOfO, gradeOfX); // get the best grade from both O and X
-
-    //                 // grade ius then compared here and the best grade will decide the best location to move. 
-    //                 // if multiple locations have have the same grade moving to either will stillm create the same result
-    //                 if (gradeMAX > bestOption) {
-    //                     bestOption = gradeMAX;
-    //                     bestOptionIndex = i;
-    //                 }
-    //             }
-    //         }
-
-    //         computerChoice = bestOptionIndex;
-    //     }
-
-    //     if (handicapUsed) {
-    //         computerIsFirstPlayer = false;
-    //     }
-
-    //     enableClearButton();// return event listern for clear button
-    //     options[computerChoice] = currentPlayer;
-    //     cells[computerChoice].textContent = currentPlayer;
-    //     checkWinner();
-    // }
-
-       /**
-     * creates a delay used to pause logic for a set amount of milli seconds
-     * @param {number} ms - the number of milli seconds to delay
-     * @returns {Promise} 
-     */
-
-    function sleep(ms) {
-        return new Promise(resolve =>setTimeout(resolve, ms)); // https://youtu.be/pw_abLxr4PI?si=Tlfw1HBU92o0wX3B
-    }
-
-}());
+function sleep(ms) {
+    return new Promise(resolve =>setTimeout(resolve, ms)); // https://youtu.be/pw_abLxr4PI?si=Tlfw1HBU92o0wX3B
+}
