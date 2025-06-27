@@ -37,13 +37,11 @@ const rollDiceButton = document.querySelector("#RollDice"); // query select the 
 let emptyGameState = {
     board: ["", "", "", "", "", "", "", "", "" ],
     currentPlayer: "",
-    playerID: 0
 }
 
 let currentGameState = {
     board: ["", "", "", "", "", "", "", "", "" ],
     currentPlayer: "", 
-    playerID: 0
 }
 
 const winConditions = [
@@ -64,7 +62,20 @@ let currentPlayer = "O";
 let running = false;
 let firstGame = true; // used to determine if the game is being played for the first time
 
+
 let fileHandle, contents;
+
+const sessionPlayerId = sessionStorage.getItem("playerID");
+if (!sessionPlayerId) {
+    if (localStorage.getItem("playerOne") === "true") {
+        localStorage.removeItem("playerOne");
+        alert("Cleared player one slot");
+    }
+    if (localStorage.getItem("playerTwo") === "true") {
+        localStorage.removeItem("playerTwo");
+        alert("Cleared player two slot");
+    }
+}
 
 startGame();
 
@@ -109,8 +120,12 @@ async function createGameStateWithinFilePicker() {
 
 /**
  * Creates a unique player ID for each player.  
- * If the player ID is not set or is NaN, it will default to 1. increment the player ID by 1 if it is not already set to 1 or 2.
- * If the player ID exceeds 2, it will alert the user and close the window.
+ * If the player ID is already set to 1 or 2, it will alert the user and not proceed.
+ * If the player ID is not set, it will check localStorage for playerOne and playerTwo.
+ * If playerOne is not set, it will set the player ID to 1 and store it in sessionStorage.
+ * If playerTwo is not set, it will set the player ID to 2 and store it in sessionStorage.
+ * If both playerOne and playerTwo are already set, it will alert the user and close the window.
+ * this function is used as its own form of state management to determine which player is which inside of the browser tab
  * @returns {void} - this will return void if the player ID is already set to 1 or 2
  */
 
@@ -120,36 +135,45 @@ async function createGameStateWithinFilePicker() {
 // Closing the browser tab destroys all localStorage data associated with that tab.
 async function createPlayerId() {
     // https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
-    alert(currentGameState.playerID); 
 
+    const storedID = sessionStorage.getItem("playerID");
+    alert("session storedID: " + storedID);
 
-    await updateLocalGameStateWithFilePicker(); 
-    // currentGameState.playerID = parseInt(localStorage.getItem("playerID")); // get the player ID from local storage, TIRED OF USING PARSEINT, WHY DOES IT ALWAYS RETURNS A STRING
-    alert("this is after init" +  currentGameState.playerID); // alert the type of player ID WHY ON EARTH IS IT ALWAYS A STRING?
-    if (currentGameState.playerID === 0) {
-        alert("player ID is not set, setting to 1"); // alert the user that the player ID is not set
-
-        currentGameState.playerID = 1;
-        await updateFileGameStateWithFilePicker();
-        alert(currentGameState.playerID); 
-
+    // Check if the player ID is already set in sessionStorage
+    // If it is set to 1 or 2, we will alert the user and not proceed
+    if (storedID === "1") {
+        alert("Restoring Player 1 from sessionStorage");
+    } else if (storedID === "2") {
+        alert("Restoring Player 2 from sessionStorage");
     } 
-    else if (currentGameState.playerID < 2){ 
-        currentGameState.playerID++;
-        await updateFileGameStateWithFilePicker();
+    else { // If the player ID is not set, we will check localStorage for playerOne and playerTwo
+        // check if playerOne and playerTwo are already set in localStorage
+        // local storage is used to store data that is accessible across browser tabs and windows
+        // session storage is used to store data that is only accessible within the current browser tab
+        const existingPlayerOne = localStorage.getItem("playerOne") ; // should be null if not set
+        const existingPlayerTwo = localStorage.getItem("playerTwo") ; // should be null if not set
+
+        alert("existingPlayerOne: " + existingPlayerOne);
+        alert("existingPlayerTwo: " + existingPlayerTwo);
+
+        if (!existingPlayerOne) {
+            alert("Assigning Player 1");
+            localStorage.setItem("playerOne", "true"); // tracks global player one state
+            sessionStorage.setItem("playerID", "1"); // tracks current player ID in session storage which is local to the tab
+        } else if (!existingPlayerTwo) {
+            alert("Assigning Player 2");
+            localStorage.setItem("playerTwo", "true"); // tracks global player two state
+            sessionStorage.setItem("playerID", "2"); // tracks current player ID in session storage which is local to the tab
+        } else { // If both playerOne and playerTwo are already set, we will alert the user and close the window
+            alert("Two players already connected.");
+            window.close();
+            return;
+        }
     }
 
-    // if (currentGameState.playerID > 2) { 
-    //     alert("Player ID has reached the maximum value of 2. "); 
-    //     window.close(); // close the window if player ID exceeds 2
-    // }
-
-    // await updateFileGameStateWithFilePicker();
-
-    // alert(currentGameState.playerID); 
-
-    localStorage.setItem("playerID", currentGameState.playerID); // store the player ID in local storage
-    alert("You are currently set to player: " + currentGameState.playerID); // alert the user of their player ID
+    await updateFileGameStateWithFilePicker();
+    console.log("You are currently set to player:", currentGameState.playerID);
+    alert("You are currently set to player: " + sessionStorage.getItem("playerID")); // alert the user of their player ID
 }
 
 /**
@@ -252,6 +276,9 @@ function startGame() {
  * 
  */
 async function ChooseStartingPlayerByRollingDice() {
+
+    alert("this is your current player id, roll dice" + currentGameState.playerID); // alert the user of their player ID
+
     let playerGuess = parseInt(playerDiceRollGuessInput.value); // get the players guess from the input field
     if (isNaN(playerGuess) || playerGuess < 1 || playerGuess > 6) {
         alert("Please enter a valid number between 1 and 6.");
@@ -309,9 +336,9 @@ function initCells() {
     if (currentPlayer === "X") {
         cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener) 
     }
-    else if (currentPlayer === "O") {
-        computerSelection();
-    }
+    // else if (currentPlayer === "O") {
+    //     computerSelection();
+    // }
     
     cells.forEach(color => color.style.color = "black"); // reset color for all cell text content
 }
