@@ -17,17 +17,27 @@
         <div class = "button-row-container"> 
             <button type = "button" id = "startButton" >Start</button> // this needs to be the start button and the clear button, only have one button for this 
             <button type = "button" id = "clearButton" >Clear</button>
-            <div class = "tooltip">
-                <input type = "number" id = "diceInput" placeholder = "Enter a number (1-6)" min = "1" max = "6">
-                <label for = "diceInput">Guess the dice roll:</label>
-                <button type = "button" id = "RollDice">Roll Dice</button>
-                <span class = "tooltiptext" >Enter a number and press roll dice. This will decide who goes first.<br>Whom ever guesses the number closest to the dice roll<br> will go first and will be "O". The other player will be "X"</span>
-            </div>
+               
+
+            <!-- <div id="diceInputContainer" style="display: none;" class = "tooltip">
+                <input type="number" id="diceInputValue" placeholder="Enter a number (1-6)" min="1" max="6">
+                <span class = "tooltiptext" >typesEnter a number and press roll dice. This will decide who goes first.<br>Whom ever guesses the number closest to the dice roll<br> will go first and will be "O". The other player will be "X"</span>
+            </div> -->
+            
             
             
         </div>
 
-        
+        <div id = "diceInputSection" style  =  "display: none;">
+            <h3>Who Goes First?</h3>
+            <div id = "diceInputContainer" class = "tooltip">
+                <input type = "number" id = "diceInputValue" placeholder = "Enter a number (1–6)" min = "1" max = "6">
+                <span class = "tooltiptext">
+                Enter a number and press Enter. Closest to the dice roll goes first as "O".
+            </span>
+            </div>
+        </div>
+
 
         <!-- #gameboard>.box#$*9 -->
         <div id="cellContainer">
@@ -45,7 +55,7 @@
         <h3 id = "statusText">Change this class back to game state</h3>
 
     </div>
-    <script src="TicTacToe.js">
+    <script src="TicTacToetwo.js">
         // TicTacToe.createBoard();
     </script>
 </body>

@@ -37,17 +37,21 @@ const rollDiceButton = document.querySelector("#RollDice"); // query select the 
 let emptyGameState = {
     board: ["", "", "", "", "", "", "", "", "" ],
     currentPlayer: "",
-    playerOneGuess: "null", // Player 1's guess (1–6)
-    playerTwoGuess: "null", // Player 2's guess (1–6)
-    dieRoll: "null"        // Final die roll (1–6)
+    playerOneGuess: null, // Player 1's guess (1–6)
+    playerTwoGuess: null, // Player 2's guess (1–6)
+    dieRoll: "",        // Final die roll (1–6)
+    isPlayerOne: [false, ""], // used to determine if the player is player one or two
+    isPlayerTwo: [false, ""], // used to determine if the player is player one or two
 }
 
 let currentGameState = {
     board: ["", "", "", "", "", "", "", "", "" ],
     currentPlayer: "", 
-    playerOneGuess: "null",   // Player 1's guess (1–6)
-    playerTwoGuess: "null",   // Player 2's guess (1–6)
-    dieRoll: "null"         // Final die roll (1–6)
+    playerOneGuess: null,   // Player 1's guess (1–6)
+    playerTwoGuess: null,   // Player 2's guess (1–6)
+    dieRoll: "",         // Final die roll (1–6)
+    isPlayerOne: [false, ""],  // used to determine if the player is player one or two
+    isPlayerTwo: [false, ""],  // used to determine if the player is player one or two
 }
 
 const winConditions = [
@@ -67,37 +71,63 @@ const winConditions = [
 // let currentPlayer = "O";
 let running = false;
 let firstGame = true; // used to determine if the game is being played for the first time
+let playerOne = false; // used to determine if the player is player one or two
+let playerTwo = false; // used to determine if the player is player one or two
 
 
 let fileHandle, contents;
 
-const sessionPlayerId = sessionStorage.getItem("playerID");
-if (!sessionPlayerId) {
-    if (localStorage.getItem("playerOne") === "true") {
-        localStorage.removeItem("playerOne");
-        alert("Cleared player one slot");
-    }
-    if (localStorage.getItem("playerTwo") === "true") {
-        localStorage.removeItem("playerTwo");
-        alert("Cleared player two slot");
-    }
+
+if (firstGame) {
+    alert("this is the first game ");
 }
+console.log("P1:", currentGameState.playerOneGuess, "P2:", currentGameState.playerTwoGuess);
 
-diceInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-        rollDiceButton.addEventListener("click", ChooseStartingPlayerByRollingDice); // add event listener to roll dice button
-    }
-});
 
-startGame();
+displayStartMessage(); // display the player message to enter a number and roll dice
 
 // doesnt work unless outside of function call for some reason? maybe button is not yet in the DOM?
 startButton.addEventListener("click", async () => {
     await createGameStateWithinFilePicker(); // this will create the game state within the file picker
-    createPlayerId(); // create a player ID for the current player
+    await reinitGameState(); // this will reinitialize the game state with the file picker
+    assignPlayerIdFromFile(); // this will assign the player if they are from a file
+    console.log("playerOne: " + playerOne);
+    console.log("playerTwo: " + playerTwo);
+    // const diceInputValue = getElementById("diceInputValue").value; // get the player input from the dice input value
+    alert(currentGameState.playerOneGuess + "this is the player one guess");
     initGame(); // proceed only after file selected
     // ChooseStartingPlayer();
 });
+
+async function reinitGameState() {   
+    
+    
+    if (firstGame) {
+        statusText.textContent = `this is the first game, reinitializing game state...`;
+        sleep(2000); // wait for 1 second to allow the user to see the message
+        firstGame = false; // set first game to false so that the handicap can be used
+        await initGameStateToFile(); // initialize the game state to the file system
+        await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
+    }
+
+    if (currentGameState.playerOneGuess !== null || currentGameState.playerTwoGuess !== null) {
+        alert("trying to reinit the game state with the file picker");
+        await initGameStateToFile(); // reinitialize the game state to the file system
+        await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
+        reinitGameState(); // recursively call the function to start the game again
+    }
+}        
+
+
+diceInputValue.addEventListener("keydown", async (event) => {
+    
+    if (event.key === "Enter") {
+        await ChooseStartingPlayerByRollingDice();
+    }
+
+});
+
+
 
 async function createGameStateWithinFilePicker() {
     // https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker?utm_source=chatgpt.com
@@ -127,6 +157,36 @@ async function createGameStateWithinFilePicker() {
     }
 
     initGameStateToFile(); // this will initialize the game state to the file system on a fresh game
+}
+
+/**
+ * Updates the local game state with the file picker.
+ * If the current game state has player one or player two assigned, it will set the respective player to true.
+ * If both players are already assigned, it will alert the user and close the window.
+ * @returns  {void} - this will return void if the player ID is already set to 1 or 2
+ */
+async function assignPlayerIdFromFile() {
+    // update the local game state with the file picker
+    await updateLocalGameStateWithFilePicker(); // this will update the local game state with the file picker
+
+    // check if the current game state has player one or player two assigned
+    if (currentGameState.isPlayerOne[0] === false) {
+        currentGameState.isPlayerOne[0] = true;
+        playerOne = true; // set player one to true
+        alert("Player One is assigned. You are Player One.");
+    } else if (currentGameState.isPlayerTwo[0] === false) {
+        alert("Player One is already assigned. Assigning Player Two.");
+        currentGameState.isPlayerTwo[0] = true;
+        playerTwo = true; // set player two to true
+        alert("Player Two is assigned. You are Player Two.");
+    } else {
+        alert("Both players are already assigned. Please refresh the page to start a new game.");
+        window.location.reload(); // close the window if both players are already assigned
+        return;
+    }
+
+    // update the current game state with the file picker
+    await updateFileGameStateWithFilePicker(); // this will update the file game state with the file picker
 }
 
 
@@ -200,6 +260,7 @@ async function initGameStateToFile() {
     contents = JSON.stringify(emptyGameState); // this is just a placeholder for the game state, it will be replaced with the actual game state
     await gameStateFile.write(contents);
     await gameStateFile.close();
+    alert("Game state initialized to file system.");
 }
 
 /**
@@ -258,30 +319,10 @@ async function catchErrorWithFilePicker(fileHandle) {
 }
 
 
-// async function saveNewGameStateToFile() {
-//     // this is to save the file to the file system
-//     const gameStateFile = await fileHandle.createWritable();
-//     contents = {"test": "test"}; // this is just a placeholder for the game state, it will be replaced with the actual game state
-//     await gameStateFile.write(JSON.stringify(gamestate));
-//     await gameStateFile.close();
-// }
-
-
-/**
- * prompts user to start a new game and initializes the start button to have an event listener for click
- * on click calls initGame to make game playable 
- */
-
-function startGame() {
-
-    if (firstGame) {
-        firstGame = false; // set first game to false so that the handicap can be used
-    }
-
-    displayStartMessage(); // display the player message to enter a number and roll dice
-    // displayFirstPlayerMessage();
-
-    
+async function getPlayerUserInputFromDiceInputValue() {
+    const diceInputValue = document.getElementById("diceInputValue").value;
+    await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+    return parseInt(diceInputValue);
 }
 
  /**
@@ -289,32 +330,26 @@ function startGame() {
  */
 async function ChooseStartingPlayerByRollingDice() {
 
-
-    const sessionPlayerId = sessionStorage.getItem("playerID");
-    alert("this is your current player id " + sessionPlayerId); // alert the user of their player ID
-    var playerOne = false;
-    var playerTwo = false;
-
-    const guess = parseInt(document.getElementById("diceInput").value);
+    const guess = await getPlayerUserInputFromDiceInputValue(); // get the player input from the dice input value
 
     if (isNaN(guess) || guess < 1 || guess > 6) {
         alert("Please enter a valid number between 1 and 6.");
         return;
     }
 
-    if (sessionPlayerId === "1") {
+    if (playerOne === true) {
         currentGameState.playerOneGuess = guess;
         alert("Player 1's guess is: " + guess);
         await updateFileGameStateWithFilePicker();
-    } else if (sessionPlayerId === "2") {
+    } else if (playerTwo === true) {
         currentGameState.playerTwoGuess = guess;
         alert("Player 2's guess is: " + guess);
         await updateFileGameStateWithFilePicker();
     }
 
     if (
-        isNaN(currentGameState.playerOneGuess) ||
-        isNaN(currentGameState.playerTwoGuess)
+        currentGameState.playerOneGuess === null ||
+        currentGameState.playerTwoGuess === null
     ) {
         alert("Waiting for both players to enter their guesses.");
         return;
@@ -350,7 +385,7 @@ async function ChooseStartingPlayerByRollingDice() {
     }
 
     await updateFileGameStateWithFilePicker();
-    document.getElementById("diceInputContainer").style.display = "none";
+    document.getElementById("diceInputSection").style.display = "none";
 
 }
 /**
@@ -366,7 +401,7 @@ async function initGame() {
         changeBoardVisibility(); // show the game board
     }
 
-    document.getElementById("diceInputContainer").style.display = "block"; // show the input box
+    document.getElementById("diceInputSection").style.display = "block"; // show the input box
 
     // rollDiceButton.addEventListener("click", ChooseStartingPlayerByRollingDice); // add event listener to roll dice button
     displayCurrentPlayerForStatusText();
@@ -475,9 +510,9 @@ function changePlayer() {
 
 
 function displayStartMessage() {
-    if (!firstGame) {
+    if (firstGame) {
         document.querySelector(".tooltiptext").style.visibility = "visible";
-        statusText.textContent = `Please enter a number between 1 and 6 and press Roll Dice to decide who goes first!`;
+        statusText.textContent = `Please press start to play!`;
     }
     // else should be the player that won the last game
 }
