@@ -91,6 +91,12 @@ startButton.addEventListener("click", async () => {
     
 });
 
+setInterval(async () => {
+    await updateLocalGameStateWithFilePicker(); // fetch latest board
+    await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+
+}, 2000);
+
 async function reinitGameState() {
 
     await updateLocalGameStateWithFilePicker(); // this will update the local game state with the file picker
@@ -99,7 +105,7 @@ async function reinitGameState() {
 
     if (firstGame && (currentGameState.isPlayerOne[0] === false && currentGameState.isPlayerTwo[0] === false)) {
         // statusText.textContent = `this is the first game, reinitializing game state...`;
-        sleep(2000); // wait for 1 second to allow the user to see the message
+        // sleep(2000); // wait for 1 second to allow the user to see the message
         // firstGame = false; // set first game to false so that the handicap can be used
         await initGameStateToFile(); // initialize the game state to the file system
         await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
@@ -108,7 +114,7 @@ async function reinitGameState() {
 
     if (firstGame && (currentGameState.isPlayerOne[0] && currentGameState.isPlayerTwo[0])) {
         // statusText.textContent = `this is the first game, reinitializing game state...`;
-        sleep(2000); // wait for 1 second to allow the user to see the message
+        // sleep(2000); // wait for 1 second to allow the user to see the message
         // firstGame = false; // set first game to false so that the handicap can be used
         await initGameStateToFile(); // reinitialize the game state to the file system
         await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
@@ -295,6 +301,8 @@ async function updateFileGameStateWithFilePicker() {
         return;
     }
     const currentFile = await fileHandle.createWritable(); // this will create a writable stream to the file
+    console.log("Current board before write:", currentGameState.board);
+
     contents = JSON.stringify(currentGameState); // this will convert the current game state to a JSON string
     await currentFile.write(contents); // this will write the contents to the file
     await currentFile.close(); // this will close the file handle
@@ -352,6 +360,8 @@ function displayPlayerInformation() {
     } else {
         statusText.textContent = `waiting for opponent's turn...`;
     }
+
+    // console.log("Current Game State:", currentGameState);
 
 }
 
@@ -452,12 +462,16 @@ async function ChooseStartingPlayerByRollingDice() {
     syncInterval = setInterval(() => {
         // console.log("displayPlayerInformation called");
         displayPlayerInformation(); // display the player information in the status text
-        removePlayerGuessingBox(); // remove the player guessing box if both players have guessed
+        
+        updateUsersChoiceCell(); // update the user's choice cell
     }, 3000);
+
+    removePlayerGuessingBox(); // remove the player guessing box if both players have guessed
+    initCells();
+
 
     // console.log("syncInterval set:", syncInterval);
 
-    // clearInterval(syncInterval); 
 }
 
 function removePlayerGuessingBox() {
@@ -488,11 +502,11 @@ async function initGame() {
     } else if (playerTwo) {
         statusText.textContent = `You are player 2 - Please enter your guess!`;
     }
-    // rollDiceButton.addEventListener("click", ChooseStartingPlayerByRollingDice); // add event listener to roll dice button
-    displayCurrentPlayerForStatusText();
-    initCells();
+    
+    // displayCurrentPlayerForStatusText();
+    // initCells();
     enableClearButton();
-    startButton.removeEventListener("click", initGame); // remove the start button listener
+    // startButton.removeEventListener("click", handleStartClick);
 }
 
 
@@ -517,17 +531,22 @@ function enableClearButton() {
 
 function initCells() {
 
-    if (currentPlayer === "X") {
+
+    alert ("initCells called, current player: " + currentGameState.currentPlayer);
+
+    if (currentGameState.currentPlayer === "X") {
         cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener) 
     }
-    else if (currentPlayer === "O") {
-        cells.forEach(cell => cell.removeEventListener("click", cellClicked)); // removeEventListener(type, listener)
+    else if (currentGameState.currentPlayer === "O") {
+        cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener)
     }
+    
     // else if (currentPlayer === "O") {
     //     computerSelection();
     // }
     
     cells.forEach(color => color.style.color = "black"); // reset color for all cell text content
+
 }
 
 /**
@@ -538,31 +557,43 @@ function initCells() {
  * for this instance we are looking for a cellindex to be clicked
  */
 
-function cellClicked(event) {
+async function cellClicked(event) {
 
     const cellIndex = event.target.getAttribute("cellIndex"); // this refers to what ever cell is clicked on screen by user
 
-    if (options[cellIndex] != "" || !running ) {
+    if (currentGameState.board[cellIndex] != "" || !running ) {
         return;
     }
 
-    updateUsersChoiceCell(event.target, cellIndex);
-    checkWinner();
+    await updateUsersChoiceCell(event.target, cellIndex);
+    await checkWinner();
 }
 
 /**
  * updates game state and UI for the selected cell that was passed by cellClicked
- * @param {number} index - The index of the cell in the options array
+ * @param {number} index - The index of the cell in the currentGameState.board array
  * @param {html} cell - the cell element that was clicked during the event that was stored from cellClicked
  */
 
-function updateUsersChoiceCell (cell, index) {
+async function updateUsersChoiceCell (cellClicked, index) {
 
+    
+    // await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
+    // alert(index + " is the index of the cell clicked");
     // options at the current index of cell clicked is being set to the current player either "X" or "O"
-    options[index] = currentPlayer;
-    if (cell) {
-        cell.textContent = currentPlayer;
-    }
+    currentGameState.board[index] = currentGameState.currentPlayer;
+    // console.log("Current board before write:", currentGameState.board);
+    // alert("Current board before write: " + currentGameState.board);
+
+    // if (cellClicked) {
+    //     cellClicked.textContent = currentGameState.currentPlayer;
+    // }
+
+    cells[index].textContent = currentGameState.currentPlayer; // update the cell with the current player's choice
+    
+    await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+    // alert("Current board after write: " + currentGameState.board);
+
 }
 
 /**
@@ -575,24 +606,27 @@ function updateUsersChoiceCell (cell, index) {
  * and may trigger the computer's move.
  */
 
-function changePlayer() {
+async function changePlayer() {
     // console.trace();
+    
+    await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
 
     if (running) {
         initCells();
     }
 
-    if (currentPlayer == "O") {
-        currentPlayer = "X";
+    if (currentGameState.currentPlayer === "O") {
+        currentGameState.currentPlayer = "X";
     } else {
-        currentPlayer = "O";
+        currentGameState.currentPlayer = "O";
     }
 
 
-    displayFirstPlayerMessage();
+    // displayFirstPlayerMessage();
 
     
-    displayCurrentPlayerForStatusText();
+    // displayCurrentPlayerForStatusText();
+    await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
     initCells();
 }
 
@@ -612,13 +646,16 @@ function displayStartMessage() {
 
 function displayCurrentPlayerForStatusText() {
 
-    statusText.textContent = `${currentPlayer}'s turn`;
+    statusText.textContent = `${currentGameState.currentPlayer}'s turn`;
     document.querySelector(".tooltiptext").style.visibility = "hidden";
+    if (syncInterval) {
+        clearInterval(syncInterval); // clear the interval to stop updating the local game state
+    }
 }
 
 function displayFirstPlayerMessage() {
 
-    statusText.textContent = `First Player: ${currentPlayer} - Press Start to Play!`;
+    statusText.textContent = `First Player: ${currentGameState.currentPlayer} - Press Start to Play!`;
     document.querySelector(".tooltiptext").style.visibility = "visible";
 }
 
@@ -629,23 +666,23 @@ function displayFirstPlayerMessage() {
  * otherwise calls changePlayer to continue the game
  */
 
-function checkWinner () {
+async function checkWinner () {
     let roundWon = false;
 
-    roundWon = checkForThreeInARow(false, options);
+    roundWon = checkForThreeInARow(currentGameState.board);
 
     if (roundWon) {
 
-        statusText.textContent = `${currentPlayer} wins! Press Clear to restart game`;
+        statusText.textContent = `${currentGameState.currentPlayer} wins! Press Clear to restart game`;
         running = false;
     }
-    else if (!options.includes("")) {
+    else if (!currentGameState.board.includes("")) {
 
         statusText.textContent = `Draw! Press Clear to restart game`;
         running = false;
     }
     else {
-        changePlayer();
+        await changePlayer();
     }
 }
 
@@ -687,8 +724,8 @@ function changeBoardVisibility() {
 
 /**
  * resets the game state to its initial configuration for a new match
- * sets currentPlayer to "X", clears the options array and all cell text content
- * sets running and the handicap to false and calls startGame 
+ * sets currentPlayer to "X", clears the currentGameState.board array and all cell text content
+ * sets running and the handicap to false and calls startGame
  */
 
 function restartGame () {
@@ -696,7 +733,7 @@ function restartGame () {
     changeBoardVisibility(); // hide the game board
     displayCurrentPlayerForStatusText();
     cells.forEach(cell => cell.textContent = "");
-    startGame();
+    // startGame();
 }
 
 /*****************************************************************************************
@@ -718,7 +755,7 @@ function restartGame () {
  * @sideEffects - If isComputer is false and a win is found, modifies cell text color to red.
  */
 
-function checkForThreeInARow(isComputer, thisOptions) {
+function checkForThreeInARow(thisOptions) {
 
     let returnValue = 0;
 
@@ -739,112 +776,14 @@ function checkForThreeInARow(isComputer, thisOptions) {
 
             if (cellA == "" || cellB == "" || cellC == "") { continue; } // double final check
 
-            if (!isComputer) {
-                changeWinnerColors(condition);
-                return true;
-            } 
-            else {
-                returnValue = 1;
-            }
+            returnValue = 1;
+            
         } 
-    }
-
-    if (!isComputer) {
-        return false;
     }
 
     return returnValue;
 }
 
-/**
- * Resets the internal game state to its initial values. this is passed to restart game
- 
-    */
-
-// function resetGameState() {
-//     currentPlayer = "X";
-//     options = ["", "", "", "", "", "", "", "", ""];
-//     running = false;
-//     handicapUsed = false;
-// }
-
-// /**
-//  * removes event listeners for the player as well as the clear game button
-//  * If the computer is has the computer is frst player boolean as true then it will run the random location picker 
-//  * it will run this twice and after it has ran it twice it toggle that boolean to false and use
-//  * for loop that goes through simplified minimax algorithm to create best choice for computer
-//  * then function will place move check for a winner and if none re add event listeners
-//  */
-
-// async function computerSelection() {
-
-//     let computerChoice; 
-//     let bestOption = -1;
-//     let bestOptionIndex = -1;
-
-//     removePlayerEventHandlers();
-
-//     if (computerIsFirstPlayer) {
-//         var randomNumber = Math.floor(Math.random() * 9);
-//         var randomOffset = Math.floor(Math.random() * 5);
-
-//         await sleep(2000); // dwell computer decision for x seconds
-//         for (let i = 0; i < options.length; i ++) {
-
-//             if (options[i] == "") {
-
-//                 if (randomNumber === i) {
-//                     computerChoice = i;
-//                     break;
-//                 }
-//                 else if (randomNumber - i >= randomOffset && randomNumber - i >= computerChoice) {
-//                     computerChoice = i;
-//                 }
-//                 else {
-//                     computerChoice = i;
-//                 }
-//             }
-//         }
-//     }
-
-//     if (!computerIsFirstPlayer) {
-
-//         await sleep(2000); // dwell computer decision for x seconds
-
-//         for (let i = 0; i < options.length; i++) {
-//             if (options[i] == "") {
-
-//                 let tempOptions = [...options]; // https://www.geeksforgeeks.org/javascript/how-to-clone-an-array-in-javascript/
-//                 tempOptions[i] = "X";
-//                 let gradeOfX = checkForThreeInARow(true, tempOptions); // grade is the value that is being stored for the best move
-
-//                 tempOptions = [...options]; 
-//                 tempOptions[i] = "O";
-//                 let gradeOfO = checkForThreeInARow(true, tempOptions); 
-
-//                 let gradeMAX = Math.max(gradeOfO, gradeOfX); // get the best grade from both O and X
-
-//                 // grade ius then compared here and the best grade will decide the best location to move. 
-//                 // if multiple locations have have the same grade moving to either will stillm create the same result
-//                 if (gradeMAX > bestOption) {
-//                     bestOption = gradeMAX;
-//                     bestOptionIndex = i;
-//                 }
-//             }
-//         }
-
-//         computerChoice = bestOptionIndex;
-//     }
-
-//     if (handicapUsed) {
-//         computerIsFirstPlayer = false;
-//     }
-
-//     enableClearButton();// return event listern for clear button
-//     options[computerChoice] = currentPlayer;
-//     cells[computerChoice].textContent = currentPlayer;
-//     checkWinner();
-// }
 
     /**
  * creates a delay used to pause logic for a set amount of milli seconds
