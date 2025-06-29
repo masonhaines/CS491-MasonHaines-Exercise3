@@ -79,22 +79,6 @@ let syncInterval; // global
 let fileHandle, contents;
 
 
-// if (firstGame) {
-//     alert("this is the first game ");
-// }
-// console.log("P1:", currentGameState.playerOneGuess, "P2:", currentGameState.playerTwoGuess);
-
-
-// window.addEventListener("load", () => {
-//     setInterval(() => {
-//         try {
-//             updateLocalGameStateWithFilePicker();
-//         } catch (error) {
-//             // console.error("Error updating local game state:", error);
-//         }
-//     }, 3000);
-// });
-
 displayStartMessage(); // display the player message to enter a number and roll dice
 
 // doesnt work unless outside of function call for some reason? maybe button is not yet in the DOM?
@@ -104,7 +88,7 @@ startButton.addEventListener("click", async () => {
     await reinitGameState(); // this will reinitialize the game state with the file picker
     await assignPlayerIdFromFile(); // this will assign the player if they are from a file
     await initGame(); // proceed only after file selected
-    // ChooseStartingPlayer();
+    
 });
 
 async function reinitGameState() {
@@ -138,7 +122,7 @@ diceInputValue.addEventListener("keydown", async (event) => {
     
     if (event.key === "Enter") {
         await ChooseStartingPlayerByRollingDice();
-        // await getPlayerUserInputFromDiceInputValue(); // get the player input from the dice input value
+    
     }
 
 });
@@ -231,48 +215,48 @@ async function assignPlayerIdFromFile() {
 // localStorage is partitioned by browser tabs and by origin. The main document, and all embedded browsing contexts (iframes), 
 // are grouped by their origin and each origin has access to its own separate storage area. 
 // Closing the browser tab destroys all localStorage data associated with that tab.
-async function createPlayerId() {
-    // https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
+// async function createPlayerId() {
+//     // https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
 
-    const storedID = sessionStorage.getItem("playerID");
-    alert("session storedID: " + storedID);
+//     const storedID = sessionStorage.getItem("playerID");
+//     alert("session storedID: " + storedID);
 
-    // Check if the player ID is already set in sessionStorage
-    // If it is set to 1 or 2, we will alert the user and not proceed
-    if (storedID === "1") {
-        alert("Restoring Player 1 from sessionStorage");
-    } else if (storedID === "2") {
-        alert("Restoring Player 2 from sessionStorage");
-    } 
-    else { // If the player ID is not set, we will check localStorage for playerOne and playerTwo
-        // check if playerOne and playerTwo are already set in localStorage
-        // local storage is used to store data that is accessible across browser tabs and windows
-        // session storage is used to store data that is only accessible within the current browser tab
-        const existingPlayerOne = localStorage.getItem("playerOne") ; // should be null if not set
-        const existingPlayerTwo = localStorage.getItem("playerTwo") ; // should be null if not set
+//     // Check if the player ID is already set in sessionStorage
+//     // If it is set to 1 or 2, we will alert the user and not proceed
+//     if (storedID === "1") {
+//         alert("Restoring Player 1 from sessionStorage");
+//     } else if (storedID === "2") {
+//         alert("Restoring Player 2 from sessionStorage");
+//     } 
+//     else { // If the player ID is not set, we will check localStorage for playerOne and playerTwo
+//         // check if playerOne and playerTwo are already set in localStorage
+//         // local storage is used to store data that is accessible across browser tabs and windows
+//         // session storage is used to store data that is only accessible within the current browser tab
+//         const existingPlayerOne = localStorage.getItem("playerOne") ; // should be null if not set
+//         const existingPlayerTwo = localStorage.getItem("playerTwo") ; // should be null if not set
 
-        alert("existingPlayerOne: " + existingPlayerOne);
-        alert("existingPlayerTwo: " + existingPlayerTwo);
+//         alert("existingPlayerOne: " + existingPlayerOne);
+//         alert("existingPlayerTwo: " + existingPlayerTwo);
 
-        if (!existingPlayerOne) {
-            alert("Assigning Player 1");
-            localStorage.setItem("playerOne", "true"); // tracks global player one state
-            sessionStorage.setItem("playerID", "1"); // tracks current player ID in session storage which is local to the tab
-        } else if (!existingPlayerTwo) {
-            alert("Assigning Player 2");
-            localStorage.setItem("playerTwo", "true"); // tracks global player two state
-            sessionStorage.setItem("playerID", "2"); // tracks current player ID in session storage which is local to the tab
-        } else { // If both playerOne and playerTwo are already set, we will alert the user and close the window
-            alert("Two players already connected.");
-            window.close();
-            return;
-        }
-    }
+//         if (!existingPlayerOne) {
+//             alert("Assigning Player 1");
+//             localStorage.setItem("playerOne", "true"); // tracks global player one state
+//             sessionStorage.setItem("playerID", "1"); // tracks current player ID in session storage which is local to the tab
+//         } else if (!existingPlayerTwo) {
+//             alert("Assigning Player 2");
+//             localStorage.setItem("playerTwo", "true"); // tracks global player two state
+//             sessionStorage.setItem("playerID", "2"); // tracks current player ID in session storage which is local to the tab
+//         } else { // If both playerOne and playerTwo are already set, we will alert the user and close the window
+//             alert("Two players already connected.");
+//             window.close();
+//             return;
+//         }
+//     }
 
-    await updateFileGameStateWithFilePicker();
-    console.log("You are currently set to player:", currentGameState.playerID);
-    alert("You are currently set to player: " + sessionStorage.getItem("playerID")); // alert the user of their player ID
-}
+//     await updateFileGameStateWithFilePicker();
+//     console.log("You are currently set to player:", currentGameState.playerID);
+//     alert("You are currently set to player: " + sessionStorage.getItem("playerID")); // alert the user of their player ID
+// }
 
 /**
  * Initializes the selected file with the initial game state.
@@ -354,28 +338,46 @@ async function catchErrorWithFilePicker(fileHandle) {
     return fileData;
 }
 
+function displayPlayerInformation() {
+
+    if ((currentGameState.playerOneGuess !== null && currentGameState.playerTwoGuess !== null) && !running) {
+        running = true;
+        changeBoardVisibility(); // show the game board
+    }
+
+    if ((currentGameState.isPlayerOne[1] === currentGameState.currentPlayer) && playerOne) {
+        statusText.textContent = `Player One you are ${currentGameState.isPlayerOne[1]} your turn to move!`;
+    } else if ((currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer) && playerTwo) {
+        statusText.textContent = `Player Two you are ${currentGameState.isPlayerTwo[1]} your turn to move!`;
+    } else {
+        statusText.textContent = `waiting for opponent's turn...`;
+    }
+
+}
+
 
 async function getPlayerUserInputFromDiceInputValue() {
     const diceInputValue = document.getElementById("diceInputValue").value;
     // await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
-    statusText.textContent = `Please Wait....`;
+    // statusText.textContent = `Please Wait....`;
 
-    syncInterval = setInterval(() => {
-        try {
-            updateLocalGameStateWithFilePicker();
-            if (playerOne && currentGameState.playerTwoGuess !== null) {
-                ChooseStartingPlayerByRollingDice(); // call the function to choose the starting player
-                bothPlayersHaveGuessed = true; // set both players have guessed to true
-            }
-            if (playerTwo && currentGameState.playerOneGuess !== null) {
-                ChooseStartingPlayerByRollingDice(); // call the function to choose the starting player
-                bothPlayersHaveGuessed = true;
-            }
-        } catch (error) {
-            // console.error("Error updating local game state:", error);
-        }
-    }, 3000);
 
+
+    //     syncInterval = setInterval(() => {
+    //     try {
+    //         updateLocalGameStateWithFilePicker();
+    //         if (playerOne && currentGameState.playerTwoGuess !== null) {
+    //             ChooseStartingPlayerByRollingDice(); // call the function to choose the starting player
+    //             bothPlayersHaveGuessed = true; // set both players have guessed to true
+    //         }
+    //         if (playerTwo && currentGameState.playerOneGuess !== null) {
+    //             ChooseStartingPlayerByRollingDice(); // call the function to choose the starting player
+    //             bothPlayersHaveGuessed = true;
+    //         }
+    //     } catch (error) {
+    //         // console.error("Error updating local game state:", error);
+    //     }
+    // }, 3000);
     return parseInt(diceInputValue);
 }
 
@@ -396,11 +398,11 @@ async function ChooseStartingPlayerByRollingDice() {
 
     if (playerOne === true) {
         currentGameState.playerOneGuess = guess;
-        alert("Player 1's guess is: " + guess);
+        // alert("Player 1's guess is: " + guess);
         await updateFileGameStateWithFilePicker();
     } else if (playerTwo === true) {
         currentGameState.playerTwoGuess = guess;
-        alert("Player 2's guess is: " + guess);
+        // alert("Player 2's guess is: " + guess);
         await updateFileGameStateWithFilePicker();
     }
 
@@ -408,25 +410,27 @@ async function ChooseStartingPlayerByRollingDice() {
         currentGameState.playerOneGuess === null ||
         currentGameState.playerTwoGuess === null
     ) {
-        alert("Waiting for both players to enter their guesses.");
+        // alert("Waiting for both players to enter their guesses.");
+        statusText.textContent = `Waiting for both players to enter their guesses...`;
+
         return;
     }
     bothPlayersHaveGuessed = true; // set both players have guessed to true
     currentGameState.diceRoll = Math.floor(Math.random() * 6) + 1;
-    alert('Value of rolled dice: ' + currentGameState.diceRoll);
+    // alert('Value of rolled dice: ' + currentGameState.diceRoll);
 
     const diff1 = Math.abs(currentGameState.diceRoll - currentGameState.playerOneGuess);
     const diff2 = Math.abs(currentGameState.diceRoll - currentGameState.playerTwoGuess);
 
-    if (diff1 < diff2) {
+    if (bothPlayersHaveGuessed && (diff1 < diff2)) {
         currentGameState.currentPlayer = "O";
         currentGameState.isPlayerOne[1] = "O"; // set player one to O
         currentGameState.isPlayerTwo[1] = "X"; // set player two to X
-        alert("Player 1 starts with O");
+        // alert("Player 1 starts with O");
         await updateFileGameStateWithFilePicker();
         // playerOne = true;
     } else if (diff1 === diff2) {
-        alert("Both players guessed the same, rolling again...");
+        // alert("Both players guessed the same, rolling again...");
         currentGameState.diceRollValue = "null";
         await updateFileGameStateWithFilePicker();
         return;
@@ -434,7 +438,7 @@ async function ChooseStartingPlayerByRollingDice() {
         currentGameState.currentPlayer = "O";
         currentGameState.isPlayerTwo[1] = "O"; // set player two to O
         currentGameState.isPlayerOne[1] = "X"; // set player one to X
-        alert("Player 2 starts with O");
+        // alert("Player 2 starts with O");
         // playerTwo = true;
     }
 
@@ -442,11 +446,26 @@ async function ChooseStartingPlayerByRollingDice() {
         clearInterval(syncInterval); // clear the interval to stop updating the local game state
     }
     await updateFileGameStateWithFilePicker();
-    document.getElementById("diceInputSection").style.display = "none";
-    diceInputValue.removeEventListener("keydown", onDiceInputKeydown);
-    
-    
+    await updateLocalGameStateWithFilePicker(); 
+    // diceInputValue.removeEventListener("keydown", onDiceInputKeydown);
+
+    syncInterval = setInterval(() => {
+        // console.log("displayPlayerInformation called");
+        displayPlayerInformation(); // display the player information in the status text
+        removePlayerGuessingBox(); // remove the player guessing box if both players have guessed
+    }, 3000);
+
+    // console.log("syncInterval set:", syncInterval);
+
+    // clearInterval(syncInterval); 
 }
+
+function removePlayerGuessingBox() {
+    if (bothPlayersHaveGuessed) {
+        document.getElementById("diceInputSection").style.display = "none";
+    }
+}
+
 /**
  * makes game playable setting running to now true
  * gives functionality to start a game and removes the event listener from the start button
