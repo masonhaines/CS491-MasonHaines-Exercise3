@@ -39,7 +39,7 @@ let emptyGameState = {
     currentPlayer: "",
     playerOneGuess: null, // Player 1's guess (1–6)
     playerTwoGuess: null, // Player 2's guess (1–6)
-    dieRoll: "",        // Final die roll (1–6)
+    diceRoll: null,        // Final die roll (1–6)
     isPlayerOne: [false, ""], // used to determine if the player is player one or two
     isPlayerTwo: [false, ""], // used to determine if the player is player one or two
 }
@@ -49,7 +49,7 @@ let currentGameState = {
     currentPlayer: "", 
     playerOneGuess: null,   // Player 1's guess (1–6)
     playerTwoGuess: null,   // Player 2's guess (1–6)
-    dieRoll: "",         // Final die roll (1–6)
+    diceRoll: null,         // Final die roll (1–6)
     isPlayerOne: [false, ""],  // used to determine if the player is player one or two
     isPlayerTwo: [false, ""],  // used to determine if the player is player one or two
 }
@@ -73,16 +73,27 @@ let running = false;
 let firstGame = true; // used to determine if the game is being played for the first time
 let playerOne = false; // used to determine if the player is player one or two
 let playerTwo = false; // used to determine if the player is player one or two
+let bothPlayersHaveGuessed = false; // used to determine if both players have guessed
 
-
+let syncInterval; // global
 let fileHandle, contents;
 
 
-if (firstGame) {
-    alert("this is the first game ");
-}
-console.log("P1:", currentGameState.playerOneGuess, "P2:", currentGameState.playerTwoGuess);
+// if (firstGame) {
+//     alert("this is the first game ");
+// }
+// console.log("P1:", currentGameState.playerOneGuess, "P2:", currentGameState.playerTwoGuess);
 
+
+// window.addEventListener("load", () => {
+//     setInterval(() => {
+//         try {
+//             updateLocalGameStateWithFilePicker();
+//         } catch (error) {
+//             // console.error("Error updating local game state:", error);
+//         }
+//     }, 3000);
+// });
 
 displayStartMessage(); // display the player message to enter a number and roll dice
 
@@ -92,10 +103,6 @@ startButton.addEventListener("click", async () => {
     await updateLocalGameStateWithFilePicker(); // this will update the local game state with the file picker
     await reinitGameState(); // this will reinitialize the game state with the file picker
     await assignPlayerIdFromFile(); // this will assign the player if they are from a file
-    console.log("playerOne: " + playerOne);
-    console.log("playerTwo: " + playerTwo);
-    // const diceInputValue = getElementById("diceInputValue").value; // get the player input from the dice input value
-    alert(currentGameState.playerOneGuess + "this is the player one guess");
     await initGame(); // proceed only after file selected
     // ChooseStartingPlayer();
 });
@@ -103,11 +110,11 @@ startButton.addEventListener("click", async () => {
 async function reinitGameState() {
 
     await updateLocalGameStateWithFilePicker(); // this will update the local game state with the file picker
-    alert(currentGameState.isPlayerOne[0] + " this is the player one state");
-    alert(currentGameState.isPlayerTwo[0] + " this is the player two state");
+    // alert(currentGameState.isPlayerOne[0] + " this is the player one state");
+    // alert(currentGameState.isPlayerTwo[0] + " this is the player two state");
 
     if (firstGame && (currentGameState.isPlayerOne[0] === false && currentGameState.isPlayerTwo[0] === false)) {
-        statusText.textContent = `this is the first game, reinitializing game state...`;
+        // statusText.textContent = `this is the first game, reinitializing game state...`;
         sleep(2000); // wait for 1 second to allow the user to see the message
         // firstGame = false; // set first game to false so that the handicap can be used
         await initGameStateToFile(); // initialize the game state to the file system
@@ -116,7 +123,7 @@ async function reinitGameState() {
     }
 
     if (firstGame && (currentGameState.isPlayerOne[0] && currentGameState.isPlayerTwo[0])) {
-        statusText.textContent = `this is the first game, reinitializing game state...`;
+        // statusText.textContent = `this is the first game, reinitializing game state...`;
         sleep(2000); // wait for 1 second to allow the user to see the message
         // firstGame = false; // set first game to false so that the handicap can be used
         await initGameStateToFile(); // reinitialize the game state to the file system
@@ -131,6 +138,7 @@ diceInputValue.addEventListener("keydown", async (event) => {
     
     if (event.key === "Enter") {
         await ChooseStartingPlayerByRollingDice();
+        // await getPlayerUserInputFromDiceInputValue(); // get the player input from the dice input value
     }
 
 });
@@ -182,16 +190,16 @@ async function assignPlayerIdFromFile() {
         if (!currentGameState.isPlayerOne[0]) {
             currentGameState.isPlayerOne[0] = true;
             playerOne = true; // set player one to true
-            alert("You are Player One.");
-            alert(currentGameState.isPlayerOne[0]);
+            // alert("You are Player One.");
+            // alert(currentGameState.isPlayerOne[0]);
             await updateFileGameStateWithFilePicker(); // this will update the file game state with the file picker
 
         } else if (!currentGameState.isPlayerTwo[0]) {
-            alert("Player One is already assigned. Assigning Player Two.");
+            // alert("Player One is already assigned. Assigning Player Two.");
             currentGameState.isPlayerTwo[0] = true;
             playerTwo = true; // set player two to true
-            alert("You are Player Two.");
-            alert(currentGameState.isPlayerTwo[0]);
+            // alert("You are Player Two.");
+            // alert(currentGameState.isPlayerTwo[0]);
             await updateFileGameStateWithFilePicker(); // this will update the file game state with the file picker
 
         } else {
@@ -278,7 +286,7 @@ async function initGameStateToFile() {
     contents = JSON.stringify(emptyGameState); // this is just a placeholder for the game state, it will be replaced with the actual game state
     await gameStateFile.write(contents);
     await gameStateFile.close();
-    alert("Game state initialized to file system.");
+    // alert("Game state initialized to file system.");
 }
 
 /**
@@ -288,7 +296,7 @@ async function initGameStateToFile() {
 
 async function updateLocalGameStateWithFilePicker() {
     // this is to update the game state with the file picker
-    alert("Updating local game state with file picker...");
+    // alert("Updating local game state with file picker...");
     const currentFile = await fileHandle.getFile(); // this will read the file data as text
     contents = await currentFile.text();
     currentGameState = JSON.parse(contents); // Converts a JavaScript Object Notation (JSON) string into an object. function definition
@@ -296,7 +304,7 @@ async function updateLocalGameStateWithFilePicker() {
 
 async function updateFileGameStateWithFilePicker() {
     // this is to update the game state with the file picker
-    alert("Updating file game state with file picker...");
+    // alert("Updating file game state with file picker...");
     const permission = await fileHandle.requestPermission({ mode: 'readwrite' });
     if (permission !== 'granted') {
         alert("Write permission denied.");
@@ -306,10 +314,10 @@ async function updateFileGameStateWithFilePicker() {
     contents = JSON.stringify(currentGameState); // this will convert the current game state to a JSON string
     await currentFile.write(contents); // this will write the contents to the file
     await currentFile.close(); // this will close the file handle
-    alert("Game state updated to file system.");
+    // alert("Game state updated to file system.");
 
 
-    alert("Writing contents:\n" + JSON.stringify(currentGameState, null, 2));
+    // alert("Writing contents:\n" + JSON.stringify(currentGameState, null, 2));
 
 }
 
@@ -350,6 +358,24 @@ async function catchErrorWithFilePicker(fileHandle) {
 async function getPlayerUserInputFromDiceInputValue() {
     const diceInputValue = document.getElementById("diceInputValue").value;
     // await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+    statusText.textContent = `Please Wait....`;
+
+    syncInterval = setInterval(() => {
+        try {
+            updateLocalGameStateWithFilePicker();
+            if (playerOne && currentGameState.playerTwoGuess !== null) {
+                ChooseStartingPlayerByRollingDice(); // call the function to choose the starting player
+                bothPlayersHaveGuessed = true; // set both players have guessed to true
+            }
+            if (playerTwo && currentGameState.playerOneGuess !== null) {
+                ChooseStartingPlayerByRollingDice(); // call the function to choose the starting player
+                bothPlayersHaveGuessed = true;
+            }
+        } catch (error) {
+            // console.error("Error updating local game state:", error);
+        }
+    }, 3000);
+
     return parseInt(diceInputValue);
 }
 
@@ -361,6 +387,7 @@ async function ChooseStartingPlayerByRollingDice() {
     await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
 
     const guess = await getPlayerUserInputFromDiceInputValue(); // get the player input from the dice input value
+    // const guess = document.getElementById("diceInputValue").value; // get the player input from the dice input value
 
     if (isNaN(guess) || guess < 1 || guess > 6) {
         alert("Please enter a valid number between 1 and 6.");
@@ -384,17 +411,20 @@ async function ChooseStartingPlayerByRollingDice() {
         alert("Waiting for both players to enter their guesses.");
         return;
     }
+    bothPlayersHaveGuessed = true; // set both players have guessed to true
+    currentGameState.diceRoll = Math.floor(Math.random() * 6) + 1;
+    alert('Value of rolled dice: ' + currentGameState.diceRoll);
 
-    currentGameState.diceRollValue = Math.floor(Math.random() * 6) + 1;
-    alert('Value of rolled dice: ' + currentGameState.diceRollValue);
-
-    const diff1 = Math.abs(currentGameState.diceRollValue - currentGameState.playerOneGuess);
-    const diff2 = Math.abs(currentGameState.diceRollValue - currentGameState.playerTwoGuess);
+    const diff1 = Math.abs(currentGameState.diceRoll - currentGameState.playerOneGuess);
+    const diff2 = Math.abs(currentGameState.diceRoll - currentGameState.playerTwoGuess);
 
     if (diff1 < diff2) {
         currentGameState.currentPlayer = "O";
+        currentGameState.isPlayerOne[1] = "O"; // set player one to O
+        currentGameState.isPlayerTwo[1] = "X"; // set player two to X
         alert("Player 1 starts with O");
-        playerOne = true;
+        await updateFileGameStateWithFilePicker();
+        // playerOne = true;
     } else if (diff1 === diff2) {
         alert("Both players guessed the same, rolling again...");
         currentGameState.diceRollValue = "null";
@@ -402,21 +432,20 @@ async function ChooseStartingPlayerByRollingDice() {
         return;
     } else {
         currentGameState.currentPlayer = "O";
+        currentGameState.isPlayerTwo[1] = "O"; // set player two to O
+        currentGameState.isPlayerOne[1] = "X"; // set player one to X
         alert("Player 2 starts with O");
-        playerTwo = true;
+        // playerTwo = true;
     }
 
-    if (playerOne && sessionPlayerId === "1") {
-        sessionStorage.setItem("playerID", "O");
-    } else if (playerTwo && sessionPlayerId === "2") {
-        sessionStorage.setItem("playerID", "O");
-    } else {
-        sessionStorage.setItem("playerID", "X");
+    if (bothPlayersHaveGuessed) {       
+        clearInterval(syncInterval); // clear the interval to stop updating the local game state
     }
-
     await updateFileGameStateWithFilePicker();
     document.getElementById("diceInputSection").style.display = "none";
-
+    diceInputValue.removeEventListener("keydown", onDiceInputKeydown);
+    
+    
 }
 /**
  * makes game playable setting running to now true
@@ -471,6 +500,9 @@ function initCells() {
 
     if (currentPlayer === "X") {
         cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener) 
+    }
+    else if (currentPlayer === "O") {
+        cells.forEach(cell => cell.removeEventListener("click", cellClicked)); // removeEventListener(type, listener)
     }
     // else if (currentPlayer === "O") {
     //     computerSelection();
