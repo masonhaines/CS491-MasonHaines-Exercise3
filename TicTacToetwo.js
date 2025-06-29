@@ -76,6 +76,8 @@ let playerTwo = false; // used to determine if the player is player one or two
 let bothPlayersHaveGuessed = false; // used to determine if both players have guessed
 
 let syncInterval; // global
+let toFileInterval;
+let fromFileInterval;
 let fileHandle, contents;
 
 
@@ -91,11 +93,11 @@ startButton.addEventListener("click", async () => {
     
 });
 
-setInterval(async () => {
-    await updateLocalGameStateWithFilePicker(); // fetch latest board
-    await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+// setInterval(async () => {
+//     await updateLocalGameStateWithFilePicker(); // fetch latest board
+//     // await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
 
-}, 2000);
+// }, 2000);
 
 async function reinitGameState() {
 
@@ -437,7 +439,7 @@ async function ChooseStartingPlayerByRollingDice() {
         currentGameState.isPlayerOne[1] = "O"; // set player one to O
         currentGameState.isPlayerTwo[1] = "X"; // set player two to X
         // alert("Player 1 starts with O");
-        await updateFileGameStateWithFilePicker();
+        // await updateFileGameStateWithFilePicker();
         // playerOne = true;
     } else if (diff1 === diff2) {
         // alert("Both players guessed the same, rolling again...");
@@ -458,14 +460,14 @@ async function ChooseStartingPlayerByRollingDice() {
     await updateFileGameStateWithFilePicker();
     await updateLocalGameStateWithFilePicker(); 
     // diceInputValue.removeEventListener("keydown", onDiceInputKeydown);
-
-    syncInterval = setInterval(() => {
-        // console.log("displayPlayerInformation called");
-        displayPlayerInformation(); // display the player information in the status text
-        
-        updateUsersChoiceCell(); // update the user's choice cell
-    }, 3000);
-
+    if (bothPlayersHaveGuessed) {
+        syncInterval = setInterval(() => {
+            // console.log("displayPlayerInformation called");
+            displayPlayerInformation(); // display the player information in the status text
+            
+            // updateUsersChoiceCell(); // update the user's choice cell
+        }, 3000);
+    }
     removePlayerGuessingBox(); // remove the player guessing box if both players have guessed
     initCells();
 
@@ -529,21 +531,39 @@ function enableClearButton() {
  * additonally resetting the color of the text content color of the cells 
  */
 
-function initCells() {
+async function initCells() {
 
+
+    if (playerOne && (currentGameState.isPlayerOne[1] === currentGameState.currentPlayer)) {
+        clearInterval(fromFileInterval); // clear the interval to stop updating the local game state
+        toFileInterval = setInterval(async () => {
+            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+        }, 1000);
+    }else {
+        clearInterval(toFileInterval); // clear the interval to stop updating the file game state
+        fromFileInterval = setInterval(async () => {
+            await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
+        }, 1000);
+    }
+
+    if (playerTwo && (currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer)) {
+        clearInterval(fromFileInterval); // clear the interval to stop updating the local game state
+        toFileInterval = setInterval(async () => {
+            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+        }, 1000);
+    } else {
+        clearInterval(toFileInterval); // clear the interval to stop updating the file game state
+        fromFileInterval = setInterval(async () => {
+            await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
+        }, 1000);
+    }
 
     alert ("initCells called, current player: " + currentGameState.currentPlayer);
-
-    if (currentGameState.currentPlayer === "X") {
+    cells.forEach(cell => cell.removeEventListener("click", cellClicked)); // remove the event listener for cellClicked to prevent multiple clicks
+    if (currentGameState.currentPlayer === "X" || currentGameState.currentPlayer === "O") {
         cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener) 
     }
-    else if (currentGameState.currentPlayer === "O") {
-        cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener)
-    }
-    
-    // else if (currentPlayer === "O") {
-    //     computerSelection();
-    // }
+    clearInterval
     
     cells.forEach(color => color.style.color = "black"); // reset color for all cell text content
 
@@ -566,7 +586,7 @@ async function cellClicked(event) {
     }
 
     await updateUsersChoiceCell(event.target, cellIndex);
-    await checkWinner();
+    await checkWinner(); // this function calls change player and checks for a winner
 }
 
 /**
@@ -593,7 +613,7 @@ async function updateUsersChoiceCell (cellClicked, index) {
     
     await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
     // alert("Current board after write: " + currentGameState.board);
-
+    sleep(1000); // sleep for 1 second to allow the user to see the move made
 }
 
 /**
@@ -616,18 +636,23 @@ async function changePlayer() {
     }
 
     if (currentGameState.currentPlayer === "O") {
+        alert("Changing player from O to X");
         currentGameState.currentPlayer = "X";
     } else {
+        alert("Changing player from X to O");
         currentGameState.currentPlayer = "O";
     }
 
-
+    alert("Current player after change: " + currentGameState.currentPlayer);
     // displayFirstPlayerMessage();
 
-    
+    await sleep(1000); // sleep for 1 second to allow the user to see the change in player
     // displayCurrentPlayerForStatusText();
     await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+    
     initCells();
+
+    // alert("changePlayer called, current player: " + currentGameState.currentPlayer);
 }
 
 
@@ -669,7 +694,9 @@ function displayFirstPlayerMessage() {
 async function checkWinner () {
     let roundWon = false;
 
-    roundWon = checkForThreeInARow(currentGameState.board);
+    // alert("checkWinner called, current player: " + currentGameState.currentPlayer);
+
+    roundWon = await checkForThreeInARow(currentGameState.board);
 
     if (roundWon) {
 
@@ -755,7 +782,7 @@ function restartGame () {
  * @sideEffects - If isComputer is false and a win is found, modifies cell text color to red.
  */
 
-function checkForThreeInARow(thisOptions) {
+async function checkForThreeInARow(thisOptions) {
 
     let returnValue = 0;
 
