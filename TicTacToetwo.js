@@ -67,13 +67,12 @@ const winConditions = [
 
 ];
 
-// let options = ["", "", "", "", "", "", "", "", "" ];
-// let currentPlayer = "O";
 let running = false;
 let firstGame = true; // used to determine if the game is being played for the first time
 let playerOne = false; // used to determine if the player is player one or two
 let playerTwo = false; // used to determine if the player is player one or two
 let bothPlayersHaveGuessed = false; // used to determine if both players have guessed
+let playerHasMoved = false; // used to determine which player can move inside of initCells
 
 let syncInterval; // global
 let toFileInterval;
@@ -87,17 +86,11 @@ displayStartMessage(); // display the player message to enter a number and roll 
 startButton.addEventListener("click", async () => {
     await createGameStateWithinFilePicker(); // this will create the game state within the file picker
     await updateLocalGameStateWithFilePicker(); // this will update the local game state with the file picker
-    await reinitGameState(); // this will reinitialize the game state with the file picker
-    await assignPlayerIdFromFile(); // this will assign the player if they are from a file
-    await initGame(); // proceed only after file selected
+    await reinitGameState(); // this will reinitialize the game state with the file picker ---- *HAS* --- LOCAL AND/OR FILE UPDATE
+    await assignPlayerIdFromFile(); // this will assign the player if they are from a file ---- *HAS* --- LOCAL AND/OR FILE UPDATE
+    await initGame(); // proceed only after file selected                                  ---- *HAS* --- LOCAL AND/OR FILE UPDATE
     
 });
-
-// setInterval(async () => {
-//     await updateLocalGameStateWithFilePicker(); // fetch latest board
-//     // await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
-
-// }, 2000);
 
 async function reinitGameState() {
 
@@ -202,7 +195,7 @@ async function assignPlayerIdFromFile() {
 
         // update the current game state with the file picker
         firstGame = false; // set first game to false so that the handicap can be used
-
+        await sleep(500); // sleep for 0.5 second to allow the user to see the message
         await updateFileGameStateWithFilePicker(); // this will update the file game state with the file picker
     }
 }
@@ -288,7 +281,6 @@ async function initGameStateToFile() {
 
 async function updateLocalGameStateWithFilePicker() {
     // this is to update the game state with the file picker
-    // alert("Updating local game state with file picker...");
     const currentFile = await fileHandle.getFile(); // this will read the file data as text
     contents = await currentFile.text();
     currentGameState = JSON.parse(contents); // Converts a JavaScript Object Notation (JSON) string into an object. function definition
@@ -296,7 +288,6 @@ async function updateLocalGameStateWithFilePicker() {
 
 async function updateFileGameStateWithFilePicker() {
     // this is to update the game state with the file picker
-    // alert("Updating file game state with file picker...");
     const permission = await fileHandle.requestPermission({ mode: 'readwrite' });
     if (permission !== 'granted') {
         alert("Write permission denied.");
@@ -308,11 +299,6 @@ async function updateFileGameStateWithFilePicker() {
     contents = JSON.stringify(currentGameState); // this will convert the current game state to a JSON string
     await currentFile.write(contents); // this will write the contents to the file
     await currentFile.close(); // this will close the file handle
-    // alert("Game state updated to file system.");
-
-
-    // alert("Writing contents:\n" + JSON.stringify(currentGameState, null, 2));
-
 }
 
 async function catchErrorWithFilePicker(fileHandle) {
@@ -321,7 +307,6 @@ async function catchErrorWithFilePicker(fileHandle) {
         alert("No file selected or an error occurred.");
         let leave = (event) => {
             if (event.keyCode === 27) {
-                // document.removeEventListener("keydown", leave);
                 return;
             }
         };
@@ -336,7 +321,6 @@ async function catchErrorWithFilePicker(fileHandle) {
                     alert("Please select a file named gamestate.json to save the game state.");
         let leave = (event) => {
             if (event.keyCode === 27) {
-                // document.removeEventListener("keydown", leave);
                 return;
             }
         };
@@ -362,9 +346,6 @@ function displayPlayerInformation() {
     } else {
         statusText.textContent = `waiting for opponent's turn...`;
     }
-
-    // console.log("Current Game State:", currentGameState);
-
 }
 
 
@@ -443,7 +424,7 @@ async function ChooseStartingPlayerByRollingDice() {
         // playerOne = true;
     } else if (diff1 === diff2) {
         // alert("Both players guessed the same, rolling again...");
-        currentGameState.diceRollValue = "null";
+        currentGameState.diceRoll = "null";
         await updateFileGameStateWithFilePicker();
         return;
     } else {
@@ -463,13 +444,11 @@ async function ChooseStartingPlayerByRollingDice() {
     if (bothPlayersHaveGuessed) {
         syncInterval = setInterval(() => {
             // console.log("displayPlayerInformation called");
-            displayPlayerInformation(); // display the player information in the status text
-            
-            // updateUsersChoiceCell(); // update the user's choice cell
+            displayPlayerInformation(); // display the player information in the status text --------------------- NO LOCAL OR FILE UPDATE
         }, 3000);
     }
-    removePlayerGuessingBox(); // remove the player guessing box if both players have guessed
-    initCells();
+    removePlayerGuessingBox(); // remove the player guessing box if both players have guessed --------------------- NO LOCAL OR FILE UPDATE
+    initCells(); // ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
 
 
     // console.log("syncInterval set:", syncInterval);
@@ -504,11 +483,8 @@ async function initGame() {
     } else if (playerTwo) {
         statusText.textContent = `You are player 2 - Please enter your guess!`;
     }
-    
-    // displayCurrentPlayerForStatusText();
-    // initCells();
+    // initCells(); // initialize the cells for the game
     enableClearButton();
-    // startButton.removeEventListener("click", handleStartClick);
 }
 
 
@@ -533,40 +509,73 @@ function enableClearButton() {
 
 async function initCells() {
 
+    if (!playerHasMoved &&
+        ((playerOne && currentGameState.isPlayerOne[1] === currentGameState.currentPlayer) ||
+        (playerTwo && currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer))) {
 
-    if (playerOne && (currentGameState.isPlayerOne[1] === currentGameState.currentPlayer)) {
-        clearInterval(fromFileInterval); // clear the interval to stop updating the local game state
+        clearInterval(fromFileInterval);
+        clearInterval(toFileInterval);
+
+        await updateLocalGameStateWithFilePicker();
+        updateBoardFromGameState();
+
         toFileInterval = setInterval(async () => {
-            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+            await updateFileGameStateWithFilePicker();
         }, 1000);
-    }else {
-        clearInterval(toFileInterval); // clear the interval to stop updating the file game state
+
+        playerHasMoved = true;
+
+    } else if (playerHasMoved === false) {
+        clearInterval(fromFileInterval);
+        clearInterval(toFileInterval);
+
         fromFileInterval = setInterval(async () => {
-            await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
+            await updateLocalGameStateWithFilePicker();
+            updateBoardFromGameState();
         }, 1000);
     }
+    // if ((!playerHasMoved && playerOne) && (currentGameState.isPlayerOne[1] === currentGameState.currentPlayer)) {
+    //     clearInterval(fromFileInterval); 
+    //     await updateLocalGameStateWithFilePicker(); 
+    //     updateBoardFromGameState(); 
+    //     toFileInterval = setInterval(async () => {
+    //         await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+    //     }, 1000);
+    //     playerHasMoved = true;
+    // }else {
+    //     playerHasMoved = false;
+    //     clearInterval(toFileInterval); // clear the interval to stop updating the file game state
+    //     fromFileInterval = setInterval(async () => {
+    //         await updateLocalGameStateWithFilePicker(); 
+    //         updateBoardFromGameState();
+    //     }, 1000);
+    // }
 
-    if (playerTwo && (currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer)) {
-        clearInterval(fromFileInterval); // clear the interval to stop updating the local game state
-        toFileInterval = setInterval(async () => {
-            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
-        }, 1000);
-    } else {
-        clearInterval(toFileInterval); // clear the interval to stop updating the file game state
-        fromFileInterval = setInterval(async () => {
-            await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
-        }, 1000);
-    }
+    // if ((!playerHasMoved && playerTwo) && (currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer)) {
+    //     clearInterval(fromFileInterval);
+    //     await updateLocalGameStateWithFilePicker(); 
+    //     updateBoardFromGameState(); 
+    //     toFileInterval = setInterval(async () => {
+    //         await updateFileGameStateWithFilePicker(); 
+    //     }, 1000);
+    //     playerHasMoved = true;
+    // } else {
+    //     playerHasMoved = false;
+    //     clearInterval(toFileInterval); // clear the interval to stop updating the file game state
+    //     fromFileInterval = setInterval(async () => {
+    //         await updateLocalGameStateWithFilePicker(); 
+    //         updateBoardFromGameState();
+    //     }, 1000);
+    // }
 
-    alert ("initCells called, current player: " + currentGameState.currentPlayer);
+    // alert ("initCells called, current player: " + currentGameState.currentPlayer);
     cells.forEach(cell => cell.removeEventListener("click", cellClicked)); // remove the event listener for cellClicked to prevent multiple clicks
-    if (currentGameState.currentPlayer === "X" || currentGameState.currentPlayer === "O") {
-        cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener) 
-    }
-    clearInterval
+
+    
+    cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener) 
+    
     
     cells.forEach(color => color.style.color = "black"); // reset color for all cell text content
-
 }
 
 /**
@@ -585,8 +594,11 @@ async function cellClicked(event) {
         return;
     }
 
-    await updateUsersChoiceCell(event.target, cellIndex);
-    await checkWinner(); // this function calls change player and checks for a winner
+    await updateUsersChoiceCell(event.target, cellIndex); // ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
+    // sleep(500);
+    // await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+    // sleep(500);
+    await checkWinner(); // this function calls change player and checks for a winner ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
 }
 
 /**
@@ -597,23 +609,15 @@ async function cellClicked(event) {
 
 async function updateUsersChoiceCell (cellClicked, index) {
 
-    
-    // await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
-    // alert(index + " is the index of the cell clicked");
-    // options at the current index of cell clicked is being set to the current player either "X" or "O"
     currentGameState.board[index] = currentGameState.currentPlayer;
-    // console.log("Current board before write:", currentGameState.board);
-    // alert("Current board before write: " + currentGameState.board);
-
-    // if (cellClicked) {
-    //     cellClicked.textContent = currentGameState.currentPlayer;
-    // }
-
     cells[index].textContent = currentGameState.currentPlayer; // update the cell with the current player's choice
-    
-    await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
-    // alert("Current board after write: " + currentGameState.board);
-    sleep(1000); // sleep for 1 second to allow the user to see the move made
+    // await sleep(500); // sleep for 0.5 second to allow the user to see the move made
+}
+
+function updateBoardFromGameState() {
+    for (let i = 0; i < cells.length; i++) {
+        cells[i].textContent = currentGameState.board[i];
+    }
 }
 
 /**
@@ -627,32 +631,25 @@ async function updateUsersChoiceCell (cellClicked, index) {
  */
 
 async function changePlayer() {
-    // console.trace();
-    
-    await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
 
-    if (running) {
-        initCells();
-    }
-
+    playerHasMoved = false; // reset playerHasMoved to false so that the player can move again
     if (currentGameState.currentPlayer === "O") {
-        alert("Changing player from O to X");
+        // alert("Changing player from O to X");
         currentGameState.currentPlayer = "X";
     } else {
-        alert("Changing player from X to O");
+        // alert("Changing player from X to O");
         currentGameState.currentPlayer = "O";
     }
 
-    alert("Current player after change: " + currentGameState.currentPlayer);
-    // displayFirstPlayerMessage();
-
-    await sleep(1000); // sleep for 1 second to allow the user to see the change in player
+    // alert("Current player after change: " + currentGameState.currentPlayer);
+  
+    clearInterval(fromFileInterval); 
+    clearInterval(toFileInterval); 
+   
     // displayCurrentPlayerForStatusText();
     await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
-    
-    initCells();
-
-    // alert("changePlayer called, current player: " + currentGameState.currentPlayer);
+    playerHasMoved = false; 
+    await initCells();
 }
 
 
@@ -700,6 +697,9 @@ async function checkWinner () {
 
     if (roundWon) {
 
+        clearInterval(syncInterval); // clear the interval to stop updating the local status
+        clearInterval(fromFileInterval); 
+        clearInterval(toFileInterval); 
         statusText.textContent = `${currentGameState.currentPlayer} wins! Press Clear to restart game`;
         running = false;
     }
@@ -710,6 +710,7 @@ async function checkWinner () {
     }
     else {
         await changePlayer();
+
     }
 }
 
@@ -802,6 +803,7 @@ async function checkForThreeInARow(thisOptions) {
         if (cellA == cellB && cellB == cellC ) {
 
             if (cellA == "" || cellB == "" || cellC == "") { continue; } // double final check
+            changeWinnerColors(condition); // change the color of the winning cells to red
 
             returnValue = 1;
             
