@@ -42,6 +42,8 @@ let emptyGameState = {
     diceRoll: null,        // Final die roll (1–6)
     isPlayerOne: [false, ""], // used to determine if the player is player one or two
     isPlayerTwo: [false, ""], // used to determine if the player is player one or two
+    winCondition: null, // used to determine if the player has won the game
+    winner: null // used to determine the winner of the game
 }
 
 let currentGameState = {
@@ -52,6 +54,8 @@ let currentGameState = {
     diceRoll: null,         // Final die roll (1–6)
     isPlayerOne: [false, ""],  // used to determine if the player is player one or two
     isPlayerTwo: [false, ""],  // used to determine if the player is player one or two
+    winCondition: null, // used to determine if the player has won the game
+    winner: null // used to determine the winner of the game
 }
 
 const winConditions = [
@@ -448,8 +452,9 @@ async function ChooseStartingPlayerByRollingDice() {
         }, 3000);
     }
     removePlayerGuessingBox(); // remove the player guessing box if both players have guessed --------------------- NO LOCAL OR FILE UPDATE
-    initCells(); // ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
-
+    if (bothPlayersHaveGuessed) {
+        initCells(); // ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
+    }
 
     // console.log("syncInterval set:", syncInterval);
 
@@ -596,7 +601,7 @@ async function cellClicked(event) {
 
     await updateUsersChoiceCell(event.target, cellIndex); // ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
     // sleep(500);
-    // await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+    await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
     // sleep(500);
     await checkWinner(); // this function calls change player and checks for a winner ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
 }
@@ -618,7 +623,50 @@ function updateBoardFromGameState() {
     for (let i = 0; i < cells.length; i++) {
         cells[i].textContent = currentGameState.board[i];
     }
+
+    if (currentGameState.winCondition !== null) {
+        changeWinnerColors(currentGameState.winCondition); // change the text color of the winning cells
+        clearInterval(syncInterval); // clear the interval to stop updating the local status
+        clearInterval(fromFileInterval); 
+        clearInterval(toFileInterval); 
+        statusText.textContent = `${currentGameState.currentPlayer} wins! Press Clear to restart game`;
+        running = false; // set running to false so that the game is not running anymore
+    }
 }
+
+/**
+ * Checks for winner by calling function to check for three in a row
+ * return from three in a row is set to boolean for round won
+ * if no win but the board is full, declares a draw
+ * otherwise calls changePlayer to continue the game
+ */
+
+async function checkWinner () {
+    let roundWon = false;
+
+    // alert("checkWinner called, current player: " + currentGameState.currentPlayer);
+
+    roundWon = await checkForThreeInARow(currentGameState.board);
+
+    if (roundWon) {
+
+        clearInterval(syncInterval); // clear the interval to stop updating the local status
+        clearInterval(fromFileInterval); 
+        clearInterval(toFileInterval); 
+        statusText.textContent = `${currentGameState.currentPlayer} wins! Press Clear to restart game`;
+        running = false;
+    }
+    else if (!currentGameState.board.includes("")) {
+
+        statusText.textContent = `Draw! Press Clear to restart game`;
+        running = false;
+    }
+    else if ((playerOne && currentGameState.isPlayerOne[1] === currentGameState.currentPlayer) ||
+        (playerTwo && currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer)) {
+        await changePlayer();
+    }
+}
+
 
 /**
  * when this is called if the gamne is running and the handicap has not been use yet...
@@ -675,45 +723,6 @@ function displayCurrentPlayerForStatusText() {
     }
 }
 
-function displayFirstPlayerMessage() {
-
-    statusText.textContent = `First Player: ${currentGameState.currentPlayer} - Press Start to Play!`;
-    document.querySelector(".tooltiptext").style.visibility = "visible";
-}
-
-/**
- * Checks for winner by calling function to check for three in a row
- * return from three in a row is set to boolean for round won
- * if no win but the board is full, declares a draw
- * otherwise calls changePlayer to continue the game
- */
-
-async function checkWinner () {
-    let roundWon = false;
-
-    // alert("checkWinner called, current player: " + currentGameState.currentPlayer);
-
-    roundWon = await checkForThreeInARow(currentGameState.board);
-
-    if (roundWon) {
-
-        clearInterval(syncInterval); // clear the interval to stop updating the local status
-        clearInterval(fromFileInterval); 
-        clearInterval(toFileInterval); 
-        statusText.textContent = `${currentGameState.currentPlayer} wins! Press Clear to restart game`;
-        running = false;
-    }
-    else if (!currentGameState.board.includes("")) {
-
-        statusText.textContent = `Draw! Press Clear to restart game`;
-        running = false;
-    }
-    else {
-        await changePlayer();
-
-    }
-}
-
 /**
  * gets specific elements that were verified for win and then changes the text content color of those cells
  * @param {number[]} condition - array of win elements that were the condition for winning 
@@ -761,7 +770,8 @@ function restartGame () {
     changeBoardVisibility(); // hide the game board
     displayCurrentPlayerForStatusText();
     cells.forEach(cell => cell.textContent = "");
-    // startGame();
+    // store winner to file
+    //update to file with both players
 }
 
 /*****************************************************************************************
@@ -804,6 +814,9 @@ async function checkForThreeInARow(thisOptions) {
 
             if (cellA == "" || cellB == "" || cellC == "") { continue; } // double final check
             changeWinnerColors(condition); // change the color of the winning cells to red
+            currentGameState.winCondition = condition; // set the win condition to the current condition
+            currentGameState.winner = currentGameState.currentPlayer; // set the winner in the current game state
+            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
 
             returnValue = 1;
             
