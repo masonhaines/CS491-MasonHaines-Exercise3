@@ -76,7 +76,7 @@ let firstGame = true; // used to determine if the game is being played for the f
 let playerOne = false; // used to determine if the player is player one or two
 let playerTwo = false; // used to determine if the player is player one or two
 let bothPlayersHaveGuessed = false; // used to determine if both players have guessed
-let playerHasMoved = false; // used to determine which player can move inside of initCells
+let playerHasMoved = false; // used to determine which player can move 
 
 let syncInterval; // global
 let toFileInterval;
@@ -126,7 +126,7 @@ async function rematchGameInitialization() {
 
     await updateLocalGameStateWithFilePicker(); 
     await initGame(); 
-    await initCells(); // reinitialize the cells with the event listener for cellClicked
+    await prepareGameTurnLogicTick(); // reinitialize the cells with the event listener for cellClicked
     updateStatusBoxOnInterval(); // update the status box on interval
 }
 
@@ -154,137 +154,6 @@ diceInputValue.addEventListener("keydown", async (event) => {
     }
 });
 
-async function createGameStateWithinFilePicker() {
-    // https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker?utm_source=chatgpt.com
-    // Here we set the options object for passing into the method. We'll allow a selection of image file types, 
-    // with no option to allow for all files types, or multiple file selection.
-    const pickerOptions = {
-        types: [{       
-            description: 'JSON Files',
-            accept : {'application/json': ['.json']} // this will accept only json files
-        }],
-        excludeAcceptAllOption: true,
-    };
-
-    [fileHandle] = await window.showOpenFilePicker(pickerOptions); // this will open the file picker dialog to select a file
-
-    const errorBool = await catchErrorWithFilePicker(fileHandle); // this will catch any errors with the file picker
-    if (errorBool !== false) {
-        let fileData = await fileHandle.getFile(); // this will get the file data from the file handle, 
-    }
-    else {
-        alert("No file selected or an error occurred. Please refresh the page and try again.");
-        return; // if there was an error with the file picker, we will return and not proceed
-    }
-}
-
-/**
- * Updates the local game state with the file picker.
- * If the current game state has player one or player two assigned, it will set the respective player to true.
- * If both players are already assigned, it will alert the user and close the window.
- * @returns  {void} - this will return void if the player ID is already set to 1 or 2
- */
-async function assignPlayerIdFromFile() {
-    // update the local game state with the file picker
-    if (firstGame) {
-        await updateLocalGameStateWithFilePicker(); 
-
-        // check if the current game state has player one or player two assigned
-        if (!currentGameState.isPlayerOne[0]) {
-            currentGameState.isPlayerOne[0] = true;
-            playerOne = true; 
-            await updateFileGameStateWithFilePicker(); 
-
-        } else if (!currentGameState.isPlayerTwo[0]) {
-            currentGameState.isPlayerTwo[0] = true;
-            playerTwo = true; 
-            await updateFileGameStateWithFilePicker(); 
-
-        } else {
-            alert("Both players are already assigned. Please refresh the page to start a new game.");
-            window.location.reload(); // close the window if both players are already assigned
-            return;
-        }
-
-        // update the current game state with the file picker
-        firstGame = false; 
-        await sleep(500); 
-        await updateFileGameStateWithFilePicker(); 
-    }
-}
-
-/**
- * Initializes the selected file with the initial game state.
- * Overwrites the contents of the chosen gameState.json file with an empty board and starting player.
- * this is called when the game is first started or when a new game is created.
- */
-
-async function initGameStateToFile() {
-    // this is to initialize the game state to the file system
-    const gameStateFile = await fileHandle.createWritable();    
-    contents = JSON.stringify(emptyGameState); // this is just a placeholder for the game state, it will be replaced with the actual game state
-    await gameStateFile.write(contents);
-    await gameStateFile.close();
-    // alert("Game state initialized to file system.");
-}
-
-/**
- * in a nut shell this function will update the local game state with the file picker
- * it is reading the file via the text method and then parsing the contents as JSON
- */
-
-async function updateLocalGameStateWithFilePicker() {
-    // this is to update the game state with the file picker
-    const currentFile = await fileHandle.getFile(); // this will read the file data as text
-    contents = await currentFile.text();
-    currentGameState = JSON.parse(contents); // Converts a JavaScript Object Notation (JSON) string into an object. function definition
-}
-
-async function updateFileGameStateWithFilePicker() {
-    // this is to update the game state with the file picker
-    const permission = await fileHandle.requestPermission({ mode: 'readwrite' });
-    if (permission !== 'granted') {
-        alert("Write permission denied.");
-        return;
-    }
-    const currentFile = await fileHandle.createWritable(); // this will create a writable stream to the file
-    console.log("Current board before write:", currentGameState.board);
-
-    contents = JSON.stringify(currentGameState); // this will convert the current game state to a JSON string
-    await currentFile.write(contents); // this will write the contents to the file
-    await currentFile.close(); // this will close the file handle
-}
-
-async function catchErrorWithFilePicker(fileHandle) {
-    // this is to catch any errors with the file picker
-    if (!fileHandle) {
-        alert("No file selected or an error occurred.");
-        let leave = (event) => {
-            if (event.keyCode === 27) {
-                return;
-            }
-        };
-        document.addEventListener("keydown", leave);
-        createGameStateWithinFilePicker(); // recursively call the function to prompt the user again
-        return false;
-    }
-
-    const fileData = await fileHandle.getFile();
-    if (fileData.name !== "gameState.json") {
-        alert("Wrong file selected. Please choose gameState.json.");
-                    alert("Please select a file named gamestate.json to save the game state.");
-        let leave = (event) => {
-            if (event.keyCode === 27) {
-                return;
-            }
-        };
-        document.addEventListener("keydown", leave);
-        createGameStateWithinFilePicker(); // recursively call the function to prompt the user again
-        return false;
-    }
-
-    return fileData;
-}
 
 /**
  * This function is used to display the player information in the status text
@@ -379,7 +248,7 @@ async function ChooseStartingPlayerByRollingDice() {
 
     removePlayerGuessingBox(); // remove the player guessing box if both players have guessed --------------------- NO LOCAL OR FILE UPDATE
     if (bothPlayersHaveGuessed) {
-        initCells(); // ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
+        prepareGameTurnLogicTick(); // ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
         startClearButton.addEventListener("click", startClearToggle); // should not be null
     }
 
@@ -435,58 +304,15 @@ async function initGame() {
     }
 }
 
-function initGameStateAfterPlaying() {
-        currentGameState.board = ["", "", "", "", "", "", "", "", "" ]; // reset the board for a new game
-        if (currentGameState.winner !== null) {
-            currentGameState.currentPlayer = currentGameState.winner; // reset the current player to the winner
-        }
-        currentGameState.winCondition = null; // reset the win condition
-        // currentGameState.winner = null; // reset the winner
-        currentGameState.playerOneGuess = null; // reset the player one guess
-        currentGameState.playerTwoGuess = null; // reset the player two guess
-        currentGameState.diceRoll = null; // reset the dice roll
-}
 
 /**
- * function essentially alows either the player or computer to make a move depending on the currentplayer string 
- * helper function to re init the cells object adding the event listern for clicked 
- * additonally resetting the color of the text content color of the cells 
+ * reinitializes the cells with the event listener for cellClicked
  */
 
-async function initCells() {
-
-    // this essentially allows either the player or computer to make a move depending on the currentPlayer X or O
-    if (!playerHasMoved &&
-        ((playerOne && currentGameState.isPlayerOne[1] === currentGameState.currentPlayer) ||
-        (playerTwo && currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer))) {
-
-        clearInterval(fromFileInterval); // clear the interval to stop updating the local game state
-        clearInterval(toFileInterval); // clear the interval to stop updating the local game state
-
-        await updateLocalGameStateWithFilePicker();
-        updateBoardFromGameState(); // update the board from the current game state --------------------- NO LOCAL OR FILE UPDATE
-
-        toFileInterval = setInterval(async () => {
-            await updateFileGameStateWithFilePicker();
-        }, 1000);
-
-        playerHasMoved = true;
-
-    } else if (playerHasMoved === false) { // if the player has not moved yet, we will update the local game state with the file picker, so they are not updating the game state while the player is making a move
-        clearInterval(fromFileInterval);
-        clearInterval(toFileInterval);
-
-        fromFileInterval = setInterval(async () => {
-            await updateLocalGameStateWithFilePicker();
-            updateBoardFromGameState();
-        }, 250);
-    }
-
-    // reinitialize the cells with the event listener for cellClicked
+function initalizeCellsUI() {
     cells.forEach(cell => cell.removeEventListener("click", cellClicked)); // remove the event listener for cellClicked to prevent multiple clicks
     cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener) 
     cells.forEach(color => color.style.color = "black"); // reset color for all cell text content
-    // alert("Game initialized. Please click on a cell to make your move!"); // alert the user that the game has been initialized
 }
 
 /**
@@ -549,80 +375,15 @@ function updateBoardFromGameState() {
 }
 
 /**
- * Checks for winner by calling function to check for three in a row
- * return from three in a row is set to boolean for round won
- * if no win but the board is full, declares a draw
- * otherwise calls changePlayer to continue the game
+ * updates status text based on the current game state
  */
-
-async function checkWinner () {
-    let roundWon = false;
-    roundWon = await checkForThreeInARow(currentGameState.board);
-
-    if (roundWon) {
-
-        clearInterval(syncInterval); // clear the interval to stop updating the local status
-        clearInterval(fromFileInterval); 
-        clearInterval(toFileInterval); 
-        statusText.textContent = `${currentGameState.currentPlayer} wins! Press Clear to restart game`;
-        running = false;
-
-        // Assign "O" to winner and "X" to loser
-        if (playerOne && (currentGameState.winner !== "O")) {
-            currentGameState.isPlayerOne[1] = "O";
-            currentGameState.isPlayerTwo[1] = "X";
-            currentGameState.winner = "O"; // set the winner to O
-            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
-        } else if (playerTwo && (currentGameState.winner !== "O")) {
-            currentGameState.isPlayerTwo[1] = "O";
-            currentGameState.isPlayerOne[1] = "X";
-            currentGameState.winner = "O"; // set the winner to O
-            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
-        }
-    }
-    else if (!currentGameState.board.includes("")) {
-
-        clearInterval(syncInterval); // clear the interval to stop updating the local status
-        clearInterval(fromFileInterval); 
-        clearInterval(toFileInterval); 
-        statusText.textContent = `Draw! Press Clear to restart game`;
-
-        running = false;
-    }
-    else if ((playerOne && currentGameState.isPlayerOne[1] === currentGameState.currentPlayer) ||
-        (playerTwo && currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer)) {
-        await changePlayer();
-    }
+function DrawMessage() {
+    statusText.textContent = `Draw! Press Clear to restart game`;
 }
 
-
-/**
- * when this is called if the gamne is running and the handicap has not been use yet...
- * it will call the init cells again and that player will get a secoind move 
- * is called after a move is made by a player and toggles the current player between "x" and "O"
- * if the current player is "O", the function calls the computer selection function
- * at the end it updates the current player to the statusText tect content
- * @sideEffects - updates global game state (currentPlayer), calls UI update functions,
- * and may trigger the computer's move.
- */
-
-async function changePlayer() {
-
-    playerHasMoved = false; // reset playerHasMoved to false so that the player can move again
-    if (currentGameState.currentPlayer === "O") {
-        currentGameState.currentPlayer = "X";
-    } else {
-        currentGameState.currentPlayer = "O";
-    }
-  
-    clearInterval(fromFileInterval); 
-    clearInterval(toFileInterval); 
-
-    await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
-    playerHasMoved = false; 
-    await initCells();
+function winnerMessage() {
+    statusText.textContent = `${currentGameState.currentPlayer} wins! Press Clear to restart game`;
 }
-
 
 function displayStartMessage() {
     if (firstGame) {
@@ -657,21 +418,6 @@ function changeWinnerColors(condition) {
     cells[condition[2]].style.color = "red";
 }
 
-/**
- * remove event listeners for cells clicked as well,
- * for the restart game so the player has to wait their turn 
- */
-
-// function removePlayerEventHandlers() {
-//     // removePlayerEventHandlers(); // remove the event handlers for the cells and buttons
-
-//     cells.forEach(cell => cell.removeEventListener("click", cellClicked));
-
-//     // await startClearToggle(); // toggle the start and clear button text
-//     startClearButton.removeEventListener("click", startClearToggle); // remove the event listener for the start button
-//     startClearButton.removeEventListener("click", rematchGameInitialization); // remove the event listener for the start button
-
-// }
 
 /**
  * changes the visibility of the game board based on the running state
@@ -686,33 +432,22 @@ function changeBoardVisibility() {
     }
 }
 
+
 /**
- * resets the game state to its initial configuration for a new match
- * sets currentPlayer to "X", clears the currentGameState.board array and all cell text content
- * sets running and the handicap to false and calls startGame
+ * clears the cells and resets the status text to indicate no winner if there is no winner
+ * also sets the winner to "O" so that the game can continue with O as the first player
  */
 
-async function restartGame () {
-    running = false; // set running to false so that the game is not running anymore
+function restartStatusAndCells() {
     cells.forEach(cell => cell.textContent = "");
-
-    // this is here just in case some one end the game early 
-    clearInterval(syncInterval);
-    clearInterval(toFileInterval);
-    clearInterval(fromFileInterval);
-    displayCurrentPlayerForStatusText();
-
-
     startClearButton.textContent = "Start";
 
     if (currentGameState.winner === null) {
         currentGameState.winner = "O";
         statusText.textContent = `No winner! Press Start to play again!`;
     }
-
-    initGameStateAfterPlaying(); // reinitialize the game state after playing
-    await updateFileGameStateWithFilePicker(); 
 }
+
 
 /*****************************************************************************************
 * *****************************************************************************************
@@ -766,7 +501,162 @@ async function checkForThreeInARow(thisOptions) {
 }
 
 
-    /**
+/**
+ * Checks for winner by calling function to check for three in a row
+ * return from three in a row is set to boolean for round won
+ * if the round is won, it clears the intervals to stop updating the local status
+ * and then chnages the ID of the winner to "O" and the loser to "X"
+ * if no win but the board is full, declares a draw
+ * otherwise calls changePlayer to continue the game
+ */
+
+async function checkWinner () {
+    let roundWon = false;
+    roundWon = await checkForThreeInARow(currentGameState.board);
+
+    if (roundWon) {
+
+        clearInterval(syncInterval); // clear the interval to stop updating the local status
+        clearInterval(fromFileInterval); 
+        clearInterval(toFileInterval); 
+        winnerMessage(); // call the winner message function to display the winner message
+        running = false;
+
+        // Assign "O" to winner and "X" to loser
+        if (playerOne && (currentGameState.winner !== "O")) {
+            currentGameState.isPlayerOne[1] = "O";
+            currentGameState.isPlayerTwo[1] = "X";
+            currentGameState.winner = "O"; // set the winner to O
+            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+        } else if (playerTwo && (currentGameState.winner !== "O")) {
+            currentGameState.isPlayerTwo[1] = "O";
+            currentGameState.isPlayerOne[1] = "X";
+            currentGameState.winner = "O"; // set the winner to O
+            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+        }
+    }
+    else if (!currentGameState.board.includes("")) {
+
+        clearInterval(syncInterval); // clear the interval to stop updating the local status
+        clearInterval(fromFileInterval); 
+        clearInterval(toFileInterval); 
+        DrawMessage(); // call the Draw function to display the draw message
+
+        running = false;
+    }
+    else if ((playerOne && currentGameState.isPlayerOne[1] === currentGameState.currentPlayer) ||
+        (playerTwo && currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer)) {
+        await changePlayer();
+    }
+}
+
+
+/**
+ * when this is called if the gamne is running and the handicap has not been use yet...
+ * it will call the init cells again and that player will get a secoind move 
+ * is called after a move is made by a player and toggles the current player between "x" and "O"
+ * if the current player is "O", the function calls the computer selection function
+ * at the end it updates the current player to the statusText tect content
+ * @sideEffects - updates global game state (currentPlayer), calls UI update functions,
+ * and may trigger the computer's move.
+ */
+
+async function changePlayer() {
+
+    playerHasMoved = false; // reset playerHasMoved to false so that the player can move again
+    if (currentGameState.currentPlayer === "O") {
+        currentGameState.currentPlayer = "X";
+    } else {
+        currentGameState.currentPlayer = "O";
+    }
+  
+    clearInterval(fromFileInterval); 
+    clearInterval(toFileInterval); 
+
+    await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+    playerHasMoved = false; 
+    await prepareGameTurnLogicTick();
+}
+
+
+/**
+ * If the player has not moved yet, this function will prepare the game turn logic tick that updates the file
+ * The additonal player logic is to update the local game state with the file picker and update the board from the current game state 
+ */
+
+async function prepareGameTurnLogicTick() {
+
+    // this essentially allows either the player or computer to make a move depending on the currentPlayer X or O
+    if (!playerHasMoved &&
+        ((playerOne && currentGameState.isPlayerOne[1] === currentGameState.currentPlayer) ||
+        (playerTwo && currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer))) {
+
+        clearInterval(fromFileInterval); // clear the interval to stop updating the local game state
+        clearInterval(toFileInterval); // clear the interval to stop updating the local game state
+
+        await updateLocalGameStateWithFilePicker();
+        updateBoardFromGameState(); // update the board from the current game state --------------------- NO LOCAL OR FILE UPDATE
+
+        toFileInterval = setInterval(async () => {
+            await updateFileGameStateWithFilePicker();
+        }, 1000);
+
+        playerHasMoved = true;
+
+    } else if (playerHasMoved === false) { // if the player has not moved yet, we will update the local game state with the file picker, so they are not updating the game state while the player is making a move
+        clearInterval(fromFileInterval);
+        clearInterval(toFileInterval);
+
+        fromFileInterval = setInterval(async () => {
+            await updateLocalGameStateWithFilePicker();
+            updateBoardFromGameState();
+        }, 250);
+    }
+
+    initalizeCellsUI(); // reinitialize the cells with the event listener for cellClicked --------------------- NO LOCAL OR FILE UPDATE
+}
+
+
+/**
+ * clears intervals and resets the game state to allow for a new game
+ * also resets the cells and status text
+ * as well as updating the file game state with the file picker and changing running to false 
+ */
+
+async function restartGame () {
+    running = false; // set running to false so that the game is not running anymore
+
+    // this is here just in case some one end the game early 
+    clearInterval(syncInterval);
+    clearInterval(toFileInterval);
+    clearInterval(fromFileInterval);
+    displayCurrentPlayerForStatusText();
+    restartStatusAndCells();
+
+    initGameStateAfterPlaying(); // reinitialize the game state after playing
+    await updateFileGameStateWithFilePicker(); 
+}
+
+
+/**
+ * initializes the game state after playing a game
+ * resets the board, current player, win condition, winner, player guesses, and dice roll
+ * does not reset the winner or the players
+ */
+function initGameStateAfterPlaying() {
+        currentGameState.board = ["", "", "", "", "", "", "", "", "" ]; // reset the board for a new game
+        if (currentGameState.winner !== null) {
+            currentGameState.currentPlayer = currentGameState.winner; // reset the current player to the winner
+        }
+        currentGameState.winCondition = null; // reset the win condition
+        // currentGameState.winner = null; // reset the winner
+        currentGameState.playerOneGuess = null; // reset the player one guess
+        currentGameState.playerTwoGuess = null; // reset the player two guess
+        currentGameState.diceRoll = null; // reset the dice roll
+}
+
+
+/**
  * creates a delay used to pause logic for a set amount of milli seconds
  * @param {number} ms - the number of milli seconds to delay
  * @returns {Promise} 
@@ -774,4 +664,158 @@ async function checkForThreeInARow(thisOptions) {
 
 function sleep(ms) {
     return new Promise(resolve =>setTimeout(resolve, ms)); // https://youtu.be/pw_abLxr4PI?si=Tlfw1HBU92o0wX3B
+}
+
+
+/**
+ * Creates a new game state within the file picker.
+ * @returns {void} - this will return void if the player ID is already set to 1 or 2
+ */
+
+async function createGameStateWithinFilePicker() {
+    // https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker?utm_source=chatgpt.com
+    // Here we set the options object for passing into the method. We'll allow a selection of image file types, 
+    // with no option to allow for all files types, or multiple file selection.
+    const pickerOptions = {
+        types: [{       
+            description: 'JSON Files',
+            accept : {'application/json': ['.json']} // this will accept only json files
+        }],
+        excludeAcceptAllOption: true,
+    };
+
+    [fileHandle] = await window.showOpenFilePicker(pickerOptions); // this will open the file picker dialog to select a file
+
+    const errorBool = await catchErrorWithFilePicker(fileHandle); // this will catch any errors with the file picker
+    if (errorBool !== false) {
+        let fileData = await fileHandle.getFile(); // this will get the file data from the file handle, 
+    }
+    else {
+        alert("No file selected or an error occurred. Please refresh the page and try again.");
+        return; // if there was an error with the file picker, we will return and not proceed
+    }
+}
+
+/**
+ * Updates the local game state with the file picker.
+ * If the current game state has player one or player two assigned, it will set the respective player to true.
+ * If both players are already assigned, it will alert the user and close the window.
+ * @returns  {void} - this will return void if the player ID is already set to 1 or 2
+ */
+async function assignPlayerIdFromFile() {
+    // update the local game state with the file picker
+    if (firstGame) {
+        await updateLocalGameStateWithFilePicker(); 
+
+        // check if the current game state has player one or player two assigned
+        if (!currentGameState.isPlayerOne[0]) {
+            currentGameState.isPlayerOne[0] = true;
+            playerOne = true; 
+            await updateFileGameStateWithFilePicker(); 
+
+        } else if (!currentGameState.isPlayerTwo[0]) {
+            currentGameState.isPlayerTwo[0] = true;
+            playerTwo = true; 
+            await updateFileGameStateWithFilePicker(); 
+
+        } else {
+            alert("Both players are already assigned. Please refresh the page to start a new game.");
+            window.location.reload(); // close the window if both players are already assigned
+            return;
+        }
+
+        // update the current game state with the file picker
+        firstGame = false; 
+        await sleep(500); 
+        await updateFileGameStateWithFilePicker(); 
+    }
+}
+
+
+/**
+ * Initializes the selected file with the initial game state.
+ * Overwrites the contents of the chosen gameState.json file with an empty board and starting player.
+ * this is called when the game is first started or when a new game is created.
+ */
+
+async function initGameStateToFile() {
+    // this is to initialize the game state to the file system
+    const gameStateFile = await fileHandle.createWritable();    
+    contents = JSON.stringify(emptyGameState); // this is just a placeholder for the game state, it will be replaced with the actual game state
+    await gameStateFile.write(contents);
+    await gameStateFile.close();
+    // alert("Game state initialized to file system.");
+}
+
+
+/**
+ * in a nut shell this function will update the local game state with the file picker
+ * it is reading the file via the text method and then parsing the contents as JSON
+ */
+
+async function updateLocalGameStateWithFilePicker() {
+    // this is to update the game state with the file picker
+    const currentFile = await fileHandle.getFile(); // this will read the file data as text
+    contents = await currentFile.text();
+    currentGameState = JSON.parse(contents); // Converts a JavaScript Object Notation (JSON) string into an object. function definition
+}
+
+
+/**
+ * Updates the game state in the file picker.
+ * @returns {void} - this will return void if the permission for read/write is not granted
+ */
+
+async function updateFileGameStateWithFilePicker() {
+    // this is to update the game state with the file picker
+    const permission = await fileHandle.requestPermission({ mode: 'readwrite' });
+    if (permission !== 'granted') {
+        alert("Write permission denied.");
+        return;
+    }
+    const currentFile = await fileHandle.createWritable(); // this will create a writable stream to the file
+    console.log("Current board before write:", currentGameState.board);
+
+    contents = JSON.stringify(currentGameState); // this will convert the current game state to a JSON string
+    await currentFile.write(contents); // this will write the contents to the file
+    await currentFile.close(); // this will close the file handle
+}
+
+
+/** * 
+ * Catches any errors with the file picker and alerts the user if no file is selected or if the wrong file is selected.
+ * If the file is not selected or an error occurs, it will prompt the user to select a file again.
+ * @param {FileSystemFileHandle} fileHandle - The file handle of the selected file.
+ * @returns {File} - Returns the file data if the file is valid, otherwise returns false.
+ */
+
+async function catchErrorWithFilePicker(fileHandle) {
+    // this is to catch any errors with the file picker
+    if (!fileHandle) {
+        alert("No file selected or an error occurred.");
+        let leave = (event) => {
+            if (event.keyCode === 27) {
+                return;
+            }
+        };
+        document.addEventListener("keydown", leave);
+        createGameStateWithinFilePicker(); // recursively call the function to prompt the user again
+        return false;
+    }
+
+    const fileData = await fileHandle.getFile();
+    if (fileData.name !== "gameState.json") {
+        alert("Wrong file selected. Please choose gameState.json.");
+                    alert("Please select a file named gamestate.json to save the game state.");
+        let leave = (event) => {
+            if (event.keyCode === 27) {
+                return;
+            }
+        };
+        document.addEventListener("keydown", leave);
+        createGameStateWithinFilePicker(); // recursively call the function to prompt the user again
+        return false;
+    }
+
+    return fileData;
 }
