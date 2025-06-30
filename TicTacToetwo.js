@@ -23,14 +23,14 @@
  * @param {number[][]} winConditions - 2d array of possible win conditions with in the gam e
  * @param {html} cells - query all cells on the tic tac toe board
  * @param {html} clearButton - query select the h3 header with id statusText
- * @param {html} startButton - query select the button with id clearButton
- * @param {html} statusText - query select the button with id startButton
+ * @param {html} startClearButton - query select the button with id clearButton
+ * @param {html} statusText - query select the button with id startClearButton
  */
 
 const cells = document.querySelectorAll(".cell"); // query all cells on the tic tac toe board
 const statusText = document.querySelector("#statusText");  // query select the h3 header with id statusText
 const clearButton = document.querySelector("#clearButton"); // query select the button with id clearButton
-const startButton = document.querySelector("#startButton"); // query select the button with id startButton
+const startClearButton = document.querySelector("#startClearButton"); // query select the button with id startClearButton
 const playerDiceRollGuessInput = document.querySelector("#diceInputContainer"); // query select the input for the dice roll guess
 const rollDiceButton = document.querySelector("#RollDice"); // query select the button for rolling the dice
 
@@ -86,6 +86,28 @@ let fileHandle, contents;
 
 displayStartMessage(); // display the player message to enter a number and roll dice
 
+
+// this is called from and event listener on the startClearButton
+async function startClearToggle() {
+    if (!running && currentGameState.winner === null) {
+        await startingGameInitialization(); // first-time setup
+        startClearButton.textContent = "Clear";
+        startClearButton.removeEventListener("click", startClearToggle); // remove the event listener for the start button
+        // running = true;
+    } 
+    else if (startClearButton.textContent === "Start") {
+        await rematchGameInitialization(); // reinitialize the game state
+        startClearButton.textContent = "Clear";
+        // startClearButton.removeEventListener("click", startClearToggle); // remove the event listener for the start button
+        // running = true;
+    } 
+    else {
+        restartGame(); // clears board and stops game
+        startClearButton.textContent = "Start";
+        // running = false;
+    }
+}
+
 async function startingGameInitialization() {
     // this will initialize the game state to the file system
     await createGameStateWithinFilePicker(); // this will create the game state within the file picker
@@ -95,16 +117,17 @@ async function startingGameInitialization() {
     await initGame(); // proceed only after file selected                                  ---- *HAS* --- LOCAL AND/OR FILE UPDATE
     // alert("Game initialized. Please enter your guess!"); // alert the user that the game has been initialized
 }
-startButton.addEventListener("click", startingGameInitialization); // add event listener to the start button for starting the game
-console.log(startButton); // should not be null
+// startClearButton.addEventListener("click", startingGameInitialization); // add event listener to the start button for starting the game
+startClearButton.addEventListener("click", startClearToggle); // should not be null
 
 async function rematchGameInitialization() {
     // this will reinitialize the game state to the file system
+    startClearButton.textContent = "Clear";
+
     await updateLocalGameStateWithFilePicker(); 
     await initGame(); 
     await initCells(); // reinitialize the cells with the event listener for cellClicked
     updateStatusBoxOnInterval(); // update the status box on interval
-    // alert("Game state reinitialized. You can now play again!"); // alert the user that the game state has been reinitialized
 }
 
 async function reinitGameState() {
@@ -263,6 +286,11 @@ async function catchErrorWithFilePicker(fileHandle) {
     return fileData;
 }
 
+/**
+ * This function is used to display the player information in the status text
+ * it is called from the reinitialzed game async function
+ * it is also called from with the function ChooseStartingPlayerByRollingDice
+ */
 function displayPlayerInformation() {
 
     if ((currentGameState.playerOneGuess !== null && currentGameState.playerTwoGuess !== null) && !running) {
@@ -344,18 +372,17 @@ async function ChooseStartingPlayerByRollingDice() {
 
     // if both players have guessed, we will display the player information on a interval
     if (bothPlayersHaveGuessed) {
-        // syncInterval = setInterval(() => {
-
-        //     displayPlayerInformation(); // display the player information in the status text --------------------- NO LOCAL OR FILE UPDATE
-        // }, 1000);
-
         updateStatusBoxOnInterval();
     }
 
     removePlayerGuessingBox(); // remove the player guessing box if both players have guessed --------------------- NO LOCAL OR FILE UPDATE
     if (bothPlayersHaveGuessed) {
         initCells(); // ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
+        startClearButton.addEventListener("click", startClearToggle); // should not be null
     }
+
+    // enableStartClearButton();
+
 }
 
 function updateStatusBoxOnInterval() {
@@ -407,22 +434,6 @@ async function initGame() {
         // alert("Game state reinitialized. You can now play again!"); // alert the user that the game state has been reinitialized
     } else{
         document.getElementById("diceInputSection").style.display = "block"; // show the input box
-    }
-
-    enableClearButton();
-}
-
-
-/**
- * adds event listener to clear button, is used if game is running 
- * is called in init game and computer selection
- */
-
-function enableClearButton() {
-
-    if(running){
-        // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
-        clearButton.addEventListener("click", restartGame);
     }
 }
 
@@ -501,6 +512,7 @@ async function updateUsersChoiceCell (cellClicked, index) {
     cells[index].textContent = currentGameState.currentPlayer; // update the cell with the current player's choice
 }
 
+
 function updateBoardFromGameState() {
     for (let i = 0; i < cells.length; i++) {
         cells[i].textContent = currentGameState.board[i];
@@ -529,11 +541,26 @@ async function checkWinner () {
 
     if (roundWon) {
 
+  
+
         clearInterval(syncInterval); // clear the interval to stop updating the local status
         clearInterval(fromFileInterval); 
         clearInterval(toFileInterval); 
         statusText.textContent = `${currentGameState.currentPlayer} wins! Press Clear to restart game`;
         running = false;
+
+        // Assign "O" to winner and "X" to loser
+        if (playerOne && (currentGameState.winner !== "O")) {
+            currentGameState.isPlayerOne[1] = "O";
+            currentGameState.isPlayerTwo[1] = "X";
+            currentGameState.winner = "O"; // set the winner to O
+            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+        } else if (playerTwo && (currentGameState.winner !== "O")) {
+            currentGameState.isPlayerTwo[1] = "O";
+            currentGameState.isPlayerOne[1] = "X";
+            currentGameState.winner = "O"; // set the winner to O
+            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+        }
     }
     else if (!currentGameState.board.includes("")) {
 
@@ -613,15 +640,16 @@ function changeWinnerColors(condition) {
  * for the restart game so the player has to wait their turn 
  */
 
-function removePlayerEventHandlers() {
-    cells.forEach(cell => cell.removeEventListener("click", cellClicked));
-    clearButton.removeEventListener("click", restartGame);
-    startButton.removeEventListener("click", startingGameInitialization);
-    startButton.removeEventListener("click", rematchGameInitialization);
+// function removePlayerEventHandlers() {
+//     // removePlayerEventHandlers(); // remove the event handlers for the cells and buttons
 
-    // create a new event listener for the start button everytime to make sure the game can be restarted and initalized properly
-    startButton.addEventListener("click", rematchGameInitialization); // add event listener to the start button for rematch game
-}
+//     cells.forEach(cell => cell.removeEventListener("click", cellClicked));
+
+//     // await startClearToggle(); // toggle the start and clear button text
+//     startClearButton.removeEventListener("click", startClearToggle); // remove the event listener for the start button
+//     startClearButton.removeEventListener("click", rematchGameInitialization); // remove the event listener for the start button
+
+// }
 
 /**
  * changes the visibility of the game board based on the running state
@@ -643,11 +671,22 @@ function changeBoardVisibility() {
  */
 
 function restartGame () {
-    
-    changeBoardVisibility(); // hide the game board
-    displayCurrentPlayerForStatusText();
+    running = false; // set running to false so that the game is not running anymore
     cells.forEach(cell => cell.textContent = "");
-    removePlayerEventHandlers(); // remove the event handlers for the cells and buttons
+
+    // this is here just in case some one end the game early 
+    clearInterval(syncInterval);
+    clearInterval(toFileInterval);
+    clearInterval(fromFileInterval);
+    // changeBoardVisibility(); // hide the game board
+    displayCurrentPlayerForStatusText();
+
+    startClearButton.textContent = "Start";
+
+    if (currentGameState.winner === null) {
+        currentGameState.winner = "O";
+        statusText.textContent = `Game restarted. ${currentGameState.winner} automatically won! Press start to play again!`;
+    }
 }
 
 /*****************************************************************************************
