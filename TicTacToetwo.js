@@ -83,69 +83,15 @@ let toFileInterval;
 let fromFileInterval;
 let fileHandle, contents;
 
+/*************************************************************************************************************************************************** */
 
 displayStartMessage(); // display the player message to enter a number and roll dice
-
-
-// this is called from and event listener on the startClearButton
-async function startClearToggle() {
-    if (!running && firstGame && currentGameState.winner === null) {
-        await startingGameInitialization(); // first-time setup
-        startClearButton.textContent = "Clear";
-        startClearButton.removeEventListener("click", startClearToggle); // remove the event listener for the start button
-        // running = true;
-    } 
-    else if (startClearButton.textContent === "Start") {
-        await rematchGameInitialization(); // reinitialize the game state
-        startClearButton.textContent = "Clear";
-        // startClearButton.removeEventListener("click", startClearToggle); // remove the event listener for the start button
-        // running = true;
-    } 
-    else {
-        await restartGame(); // clears board and stops game
-        startClearButton.textContent = "Start";
-        // running = false;
-    }
-}
-
-async function startingGameInitialization() {
-    // this will initialize the game state to the file system
-    await createGameStateWithinFilePicker(); // this will create the game state within the file picker
-    await updateLocalGameStateWithFilePicker(); // this will update the local game state with the file picker
-    await reinitGameState(); // this will reinitialize the game state with the file picker ---- *HAS* --- LOCAL AND/OR FILE UPDATE
-    await assignPlayerIdFromFile(); // this will assign the player if they are from a file ---- *HAS* --- LOCAL AND/OR FILE UPDATE
-    await initGame(); // proceed only after file selected                                  ---- *HAS* --- LOCAL AND/OR FILE UPDATE
-    // alert("Game initialized. Please enter your guess!"); // alert the user that the game has been initialized
-}
-// startClearButton.addEventListener("click", startingGameInitialization); // add event listener to the start button for starting the game
 startClearButton.addEventListener("click", startClearToggle); // should not be null
 
-async function rematchGameInitialization() {
-    // this will reinitialize the game state to the file system
-    startClearButton.textContent = "Clear";
 
-    await updateLocalGameStateWithFilePicker(); 
-    await initGame(); 
-    await prepareGameTurnLogicTick(); // reinitialize the cells with the event listener for cellClicked
-    updateStatusBoxOnInterval(); // update the status box on interval
-}
-
-async function reinitGameState() {
-
-    await updateLocalGameStateWithFilePicker(); // this will update the local game state with the file picker
-
-    if (firstGame && (currentGameState.isPlayerOne[0] === false && currentGameState.isPlayerTwo[0] === false)) {
-        await initGameStateToFile(); // initialize the game state to the file system
-        await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
-        return;
-    }
-
-    if (firstGame && (currentGameState.isPlayerOne[0] && currentGameState.isPlayerTwo[0])) {
-        await initGameStateToFile(); 
-        await updateLocalGameStateWithFilePicker(); 
-        return;
-    }
-}        
+/**
+ * this creates and event listener for the roll dice input box
+ */
 
 diceInputValue.addEventListener("keydown", async (event) => {
     
@@ -177,84 +123,29 @@ function displayPlayerInformation() {
     }
 }
 
+/**
+ * Gets the player's input from the dice input value.
+ * @returns {number} The player's input as a number.
+ */
 
 async function getPlayerUserInputFromDiceInputValue() {
     const diceInputValue = document.getElementById("diceInputValue").value;
     return parseInt(diceInputValue);
 }
 
+
  /**
- * 
+ * displays a message in the status text indicating that both players are waiting for their guesses
  */
-async function ChooseStartingPlayerByRollingDice() {
 
-    await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
-    const guess = await getPlayerUserInputFromDiceInputValue(); // get the player input from the dice input value
-
-    if (isNaN(guess) || guess < 1 || guess > 6) {
-        alert("Please enter a valid number between 1 and 6.");
-        return;
-    }
-
-    // this player one and player two was made on order of loading the game state from the file picker
-    if (playerOne === true) {
-        currentGameState.playerOneGuess = guess;
-        await updateFileGameStateWithFilePicker();
-    } else if (playerTwo === true) {
-        currentGameState.playerTwoGuess = guess;
-        await updateFileGameStateWithFilePicker();
-    }
-
-    if (
-        currentGameState.playerOneGuess === null || currentGameState.playerTwoGuess === null) {
-        statusText.textContent = `Waiting for both players to enter their guesses...`;
-        return;
-    }
-    bothPlayersHaveGuessed = true; // set both players have guessed to true
-    if (currentGameState.diceRoll === null) {
-        currentGameState.diceRoll = Math.floor(Math.random() * 6) + 1;
-    }
-
-    const diff1 = Math.abs(currentGameState.diceRoll - currentGameState.playerOneGuess);
-    const diff2 = Math.abs(currentGameState.diceRoll - currentGameState.playerTwoGuess);
-
-    if (bothPlayersHaveGuessed && (diff1 < diff2)) {
-        currentGameState.currentPlayer = "O";
-        currentGameState.isPlayerOne[1] = "O"; // set player one to O
-        currentGameState.isPlayerTwo[1] = "X"; // set player two to X
-
-    } else if (diff1 === diff2) {
-        currentGameState.diceRoll = "null";
-        await updateFileGameStateWithFilePicker();
-        return;
-
-    } else {
-        currentGameState.currentPlayer = "O";
-        currentGameState.isPlayerTwo[1] = "O"; // set player two to O
-        currentGameState.isPlayerOne[1] = "X"; // set player one to X
-
-    }
-
-    if (bothPlayersHaveGuessed) {       
-        clearInterval(syncInterval); // clear the interval to stop updating the local game state
-    }
-    await updateFileGameStateWithFilePicker();
-    await updateLocalGameStateWithFilePicker(); 
-
-    // if both players have guessed, we will display the player information on a interval
-    if (bothPlayersHaveGuessed) {
-        updateStatusBoxOnInterval();
-    }
-
-    removePlayerGuessingBox(); // remove the player guessing box if both players have guessed --------------------- NO LOCAL OR FILE UPDATE
-    if (bothPlayersHaveGuessed) {
-        prepareGameTurnLogicTick(); // ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
-        startClearButton.addEventListener("click", startClearToggle); // should not be null
-    }
-
-    // enableStartClearButton();
-
+function waitingForOtherPlayerGuessMessage() {
+    statusText.textContent = `Waiting for both players to enter their guesses...`;
 }
+
+
+/**
+ * updates the status box on an interval to display the player information does this  every .25 seconds
+ */
 
 function updateStatusBoxOnInterval() {
     syncInterval = setInterval(() => {
@@ -263,6 +154,11 @@ function updateStatusBoxOnInterval() {
     }, 250);
 }
 
+
+/**
+ * removes the player guessing box if both players have guessed
+ */
+
 function removePlayerGuessingBox() {
     // remove the player guessing box if both players have guessed
     if (bothPlayersHaveGuessed) {
@@ -270,13 +166,14 @@ function removePlayerGuessingBox() {
     }
 }
 
+
 /**
  * makes game playable setting running to now true
  * gives functionality to start a game and removes the event listener from the start button
  * and creates and event listener for the clear button which calls restart game on click
  */
 
-async function initGame() {
+async function initGameUI() {
 
     await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
 
@@ -315,6 +212,7 @@ function initalizeCellsUI() {
     cells.forEach(color => color.style.color = "black"); // reset color for all cell text content
 }
 
+
 /**
  * event handler for when a cell is clicked during gameplay
  * gets the clicked cell index, prevents moves if cell is taken or game is not running
@@ -335,6 +233,7 @@ async function cellClicked(event) {
     await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
     await checkWinner(); // this function calls change player and checks for a winner ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
 }
+
 
 /**
  * updates game state and UI for the selected cell that was passed by cellClicked
@@ -374,6 +273,7 @@ function updateBoardFromGameState() {
     }
 }
 
+
 /**
  * updates status text based on the current game state
  */
@@ -384,6 +284,12 @@ function DrawMessage() {
 function winnerMessage() {
     statusText.textContent = `${currentGameState.currentPlayer} wins! Press Clear to restart game`;
 }
+
+
+/**
+ * displays a message to the user to press start to play the game
+ * this is called when the game is first started or when a new game is created
+ */
 
 function displayStartMessage() {
     if (firstGame) {
@@ -440,7 +346,7 @@ function changeBoardVisibility() {
 
 function restartStatusAndCells() {
     cells.forEach(cell => cell.textContent = "");
-    startClearButton.textContent = "Start";
+    ButtonTextStart();
 
     if (currentGameState.winner === null) {
         currentGameState.winner = "O";
@@ -448,6 +354,13 @@ function restartStatusAndCells() {
     }
 }
 
+function ButtonTextClear() {
+    startClearButton.textContent = "Clear";
+}
+
+function ButtonTextStart() {
+    startClearButton.textContent = "Start";
+}
 
 /*****************************************************************************************
 * *****************************************************************************************
@@ -456,6 +369,156 @@ function restartStatusAndCells() {
 * *****************************************************************************************
 * *****************************************************************************************                          
 *****************************************************************************************/
+
+
+/**
+ * this function is to pick which way the board is initialized
+ * it will either start the game with a dice roll or not or it will clear the board
+ */
+
+async function startClearToggle() {
+    if (!running && firstGame && currentGameState.winner === null) {
+        await startingGameInitialization(); // first-time setup
+        ButtonTextClear();
+        startClearButton.removeEventListener("click", startClearToggle); // remove the event listener for the start button
+    } 
+    else if (startClearButton.textContent === "Start") {
+        await rematchGameInitialization(); // reinitialize the game state
+        ButtonTextClear();
+    } 
+    else {
+        await restartGame(); // clears board and stops game
+        ButtonTextStart();
+    }
+}
+
+/**
+ * This function initializes the game state when the game is first started.
+ */
+
+async function startingGameInitialization() {
+    // this will initialize the game state to the file system
+    await createGameStateWithinFilePicker(); // this will create the game state within the file picker
+    await updateLocalGameStateWithFilePicker(); // this will update the local game state with the file picker
+    await reinitGameState(); // this will reinitialize the game state with the file picker ---- *HAS* --- LOCAL AND/OR FILE UPDATE
+    await assignPlayerIdFromFile(); // this will assign the player if they are from a file ---- *HAS* --- LOCAL AND/OR FILE UPDATE
+    await initGameUI(); // proceed only after file selected                                  ---- *HAS* --- LOCAL AND/OR FILE UPDATE
+    // alert("Game initialized. Please enter your guess!"); // alert the user that the game has been initialized
+}
+// startClearButton.addEventListener("click", startingGameInitialization); // add event listener to the start button for starting the game
+
+
+/**
+ * This function initializes the game state when the game is rematched.
+ */
+
+async function rematchGameInitialization() {
+    // this will reinitialize the game state to the file system
+    ButtonTextClear();
+
+    await updateLocalGameStateWithFilePicker(); 
+    await initGameUI(); 
+    await prepareGameTurnLogicTick(); // reinitialize the cells with the event listener for cellClicked
+    updateStatusBoxOnInterval(); // update the status box on interval
+}
+
+
+
+/**
+* Ensures the game state is properly initialized on first load.
+ * Initializes or reinitializes the game state file if needed.
+ * @returns {void}
+ */
+
+async function reinitGameState() {
+
+    await updateLocalGameStateWithFilePicker(); // this will update the local game state with the file picker
+
+    if (firstGame && (currentGameState.isPlayerOne[0] === false && currentGameState.isPlayerTwo[0] === false)) {
+        await initGameStateToFile(); // initialize the game state to the file system
+        await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
+        return;
+    }
+
+    if (firstGame && (currentGameState.isPlayerOne[0] && currentGameState.isPlayerTwo[0])) {
+        await initGameStateToFile(); 
+        await updateLocalGameStateWithFilePicker(); 
+        return;
+    }
+}        
+
+
+/**
+ * Handles the dice roll guessing phase to determine which player goes first.
+ * Updates game state with guesses, rolls the dice, assigns "O" and "X", and prepares the game start.
+ */
+
+async function ChooseStartingPlayerByRollingDice() {
+
+    await updateLocalGameStateWithFilePicker(); // update the local game state with the file picker
+    const guess = await getPlayerUserInputFromDiceInputValue(); // get the player input from the dice input value
+
+    if (isNaN(guess) || guess < 1 || guess > 6) {
+        // alert("Please enter a valid number between 1 and 6.");
+        return;
+    }
+
+    // this player one and player two was made on order of loading the game state from the file picker
+    if (playerOne === true) {
+        currentGameState.playerOneGuess = guess;
+        await updateFileGameStateWithFilePicker();
+    } else if (playerTwo === true) {
+        currentGameState.playerTwoGuess = guess;
+        await updateFileGameStateWithFilePicker();
+    }
+
+    if (
+        currentGameState.playerOneGuess === null || currentGameState.playerTwoGuess === null) {
+        waitingForOtherPlayerGuessMessage(); // display that both players are waiting for their guesses
+        return;
+    }
+    bothPlayersHaveGuessed = true; // set both players have guessed to true
+    if (currentGameState.diceRoll === null) {
+        currentGameState.diceRoll = Math.floor(Math.random() * 6) + 1;
+    }
+
+    const diff1 = Math.abs(currentGameState.diceRoll - currentGameState.playerOneGuess);
+    const diff2 = Math.abs(currentGameState.diceRoll - currentGameState.playerTwoGuess);
+
+    if (bothPlayersHaveGuessed && (diff1 < diff2)) {
+        currentGameState.currentPlayer = "O";
+        currentGameState.isPlayerOne[1] = "O"; // set player one to O
+        currentGameState.isPlayerTwo[1] = "X"; // set player two to X
+
+    } else if (diff1 === diff2) {
+        currentGameState.diceRoll = "null";
+        await updateFileGameStateWithFilePicker();
+        return;
+
+    } else {
+        currentGameState.currentPlayer = "O";
+        currentGameState.isPlayerTwo[1] = "O"; // set player two to O
+        currentGameState.isPlayerOne[1] = "X"; // set player one to X
+
+    }
+
+    if (bothPlayersHaveGuessed) {       
+        clearInterval(syncInterval); // clear the interval to stop updating the local game state
+    }
+    await updateFileGameStateWithFilePicker();
+    await updateLocalGameStateWithFilePicker(); 
+
+    // if both players have guessed, we will display the player information on a interval
+    if (bothPlayersHaveGuessed) {
+        updateStatusBoxOnInterval();
+    }
+
+    removePlayerGuessingBox(); // remove the player guessing box if both players have guessed --------------------- NO LOCAL OR FILE UPDATE
+    if (bothPlayersHaveGuessed) {
+        prepareGameTurnLogicTick(); // ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
+        startClearButton.addEventListener("click", startClearToggle); // should not be null
+    }
+}
 
 
 /**
