@@ -86,15 +86,26 @@ let fileHandle, contents;
 
 displayStartMessage(); // display the player message to enter a number and roll dice
 
-// doesnt work unless outside of function call for some reason? maybe button is not yet in the DOM?
-startButton.addEventListener("click", async () => {
+async function startingGameInitialization() {
+    // this will initialize the game state to the file system
     await createGameStateWithinFilePicker(); // this will create the game state within the file picker
     await updateLocalGameStateWithFilePicker(); // this will update the local game state with the file picker
     await reinitGameState(); // this will reinitialize the game state with the file picker ---- *HAS* --- LOCAL AND/OR FILE UPDATE
     await assignPlayerIdFromFile(); // this will assign the player if they are from a file ---- *HAS* --- LOCAL AND/OR FILE UPDATE
     await initGame(); // proceed only after file selected                                  ---- *HAS* --- LOCAL AND/OR FILE UPDATE
-    
-});
+    // alert("Game initialized. Please enter your guess!"); // alert the user that the game has been initialized
+}
+startButton.addEventListener("click", startingGameInitialization); // add event listener to the start button for starting the game
+console.log(startButton); // should not be null
+
+async function rematchGameInitialization() {
+    // this will reinitialize the game state to the file system
+    await updateLocalGameStateWithFilePicker(); 
+    await initGame(); 
+    await initCells(); // reinitialize the cells with the event listener for cellClicked
+    updateStatusBoxOnInterval(); // update the status box on interval
+    // alert("Game state reinitialized. You can now play again!"); // alert the user that the game state has been reinitialized
+}
 
 async function reinitGameState() {
 
@@ -333,16 +344,25 @@ async function ChooseStartingPlayerByRollingDice() {
 
     // if both players have guessed, we will display the player information on a interval
     if (bothPlayersHaveGuessed) {
-        syncInterval = setInterval(() => {
+        // syncInterval = setInterval(() => {
 
-            displayPlayerInformation(); // display the player information in the status text --------------------- NO LOCAL OR FILE UPDATE
-        }, 1000);
+        //     displayPlayerInformation(); // display the player information in the status text --------------------- NO LOCAL OR FILE UPDATE
+        // }, 1000);
+
+        updateStatusBoxOnInterval();
     }
 
     removePlayerGuessingBox(); // remove the player guessing box if both players have guessed --------------------- NO LOCAL OR FILE UPDATE
     if (bothPlayersHaveGuessed) {
         initCells(); // ---------------- *HAS* ------------- LOCAL AND/OR FILE UPDATE
     }
+}
+
+function updateStatusBoxOnInterval() {
+    syncInterval = setInterval(() => {
+
+        displayPlayerInformation(); // display the player information in the status text --------------------- NO LOCAL OR FILE UPDATE
+    }, 250);
 }
 
 function removePlayerGuessingBox() {
@@ -367,12 +387,26 @@ async function initGame() {
         changeBoardVisibility(); // show the game board
     }
 
-    document.getElementById("diceInputSection").style.display = "block"; // show the input box
+    
     statusText.textContent = `Please enter your guess!`;
     if (playerOne) {
         statusText.textContent = `You are player 1 - Please enter your guess!`;
     } else if (playerTwo) {
         statusText.textContent = `You are player 2 - Please enter your guess!`;
+    }
+
+    if (currentGameState.isPlayerOne[1] !== "" && currentGameState.isPlayerTwo[1] !== "") {
+        currentGameState.board = ["", "", "", "", "", "", "", "", "" ]; // reset the board for a new game
+        currentGameState.currentPlayer = currentGameState.winner; // reset the current player to the winner
+        currentGameState.winCondition = null; // reset the win condition
+        // currentGameState.winner = null; // reset the winner
+        currentGameState.playerOneGuess = null; // reset the player one guess
+        currentGameState.playerTwoGuess = null; // reset the player two guess
+        currentGameState.diceRoll = null; // reset the dice roll
+        await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+        // alert("Game state reinitialized. You can now play again!"); // alert the user that the game state has been reinitialized
+    } else{
+        document.getElementById("diceInputSection").style.display = "block"; // show the input box
     }
 
     enableClearButton();
@@ -424,13 +458,14 @@ async function initCells() {
         fromFileInterval = setInterval(async () => {
             await updateLocalGameStateWithFilePicker();
             updateBoardFromGameState();
-        }, 1000);
+        }, 250);
     }
 
     // reinitialize the cells with the event listener for cellClicked
     cells.forEach(cell => cell.removeEventListener("click", cellClicked)); // remove the event listener for cellClicked to prevent multiple clicks
     cells.forEach(cell => cell.addEventListener("click", cellClicked)); // addEventListener(type, listener) 
     cells.forEach(color => color.style.color = "black"); // reset color for all cell text content
+    // alert("Game initialized. Please click on a cell to make your move!"); // alert the user that the game has been initialized
 }
 
 /**
@@ -581,6 +616,11 @@ function changeWinnerColors(condition) {
 function removePlayerEventHandlers() {
     cells.forEach(cell => cell.removeEventListener("click", cellClicked));
     clearButton.removeEventListener("click", restartGame);
+    startButton.removeEventListener("click", startingGameInitialization);
+    startButton.removeEventListener("click", rematchGameInitialization);
+
+    // create a new event listener for the start button everytime to make sure the game can be restarted and initalized properly
+    startButton.addEventListener("click", rematchGameInitialization); // add event listener to the start button for rematch game
 }
 
 /**
@@ -607,6 +647,7 @@ function restartGame () {
     changeBoardVisibility(); // hide the game board
     displayCurrentPlayerForStatusText();
     cells.forEach(cell => cell.textContent = "");
+    removePlayerEventHandlers(); // remove the event handlers for the cells and buttons
 }
 
 /*****************************************************************************************
