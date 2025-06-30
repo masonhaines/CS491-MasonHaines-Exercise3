@@ -18,13 +18,15 @@
 
 /**
  * @param {string} currentPlayer - the current players character will be X or O
- * @param {string[]} options - array that holds the current state of the array 
  * @param {boolean} running - the current state of the game, whether it is running or not 
  * @param {number[][]} winConditions - 2d array of possible win conditions with in the gam e
  * @param {html} cells - query all cells on the tic tac toe board
  * @param {html} clearButton - query select the h3 header with id statusText
  * @param {html} startClearButton - query select the button with id clearButton
  * @param {html} statusText - query select the button with id startClearButton
+ * @param {HTMLElement} startClearButton - The button used to toggle between Start and Clear (#startClearButton).
+ * @param {HTMLElement} playerDiceRollGuessInput - The container for dice input elements (#diceInputContainer).
+ * @param {HTMLElement} rollDiceButton - The button used to submit a dice roll guess (#RollDice).
  */
 
 const cells = document.querySelectorAll(".cell"); // query all cells on the tic tac toe board
@@ -33,6 +35,10 @@ const clearButton = document.querySelector("#clearButton"); // query select the 
 const startClearButton = document.querySelector("#startClearButton"); // query select the button with id startClearButton
 const playerDiceRollGuessInput = document.querySelector("#diceInputContainer"); // query select the input for the dice roll guess
 const rollDiceButton = document.querySelector("#RollDice"); // query select the button for rolling the dice
+
+/**
+ * @type {Object} emptyGameState - used to store the initial game state
+ */
 
 let emptyGameState = {
     board: ["", "", "", "", "", "", "", "", "" ],
@@ -45,6 +51,10 @@ let emptyGameState = {
     winCondition: null, // used to determine if the player has won the game
     winner: null // used to determine the winner of the game
 }
+
+/**
+ * @type {Object} currentGameState - used to store the current game state
+ */
 
 let currentGameState = {
     board: ["", "", "", "", "", "", "", "", "" ],
@@ -71,17 +81,32 @@ const winConditions = [
 
 ];
 
-let running = false;
+/**
+ * @type {boolean} firstGame - used to determine if the game is being played for the first time
+ * @type {boolean} running - used to determine if the game is running or not
+ * @type {boolean} playerOne - used to determine if the player is player one or two
+ * @type {boolean} playerTwo - used to determine if the player is player one or tw
+ * @type {boolean} bothPlayersHaveGuessed - used to determine if both players have guessed
+ * @type {boolean} playerHasMoved - used to determine which player can move
+ */
+let running = false; // used to determine if the game is running or not
 let firstGame = true; // used to determine if the game is being played for the first time
 let playerOne = false; // used to determine if the player is player one or two
 let playerTwo = false; // used to determine if the player is player one or two
 let bothPlayersHaveGuessed = false; // used to determine if both players have guessed
 let playerHasMoved = false; // used to determine which player can move 
 
+/**
+ * @type {number} syncInterval - used to update the status text on an interval
+ * @type {number} toFileInterval - used to update the file game state on an interval
+ * @type {number} fromFileInterval - used to update the local game state on an interval
+ * @type {FileSystemFileHandle} fileHandle - used to handle the file system file handle
+ * @type {string} contents - used to store the contents of the file
+ */
 let syncInterval; // global
-let toFileInterval;
-let fromFileInterval;
-let fileHandle, contents;
+let toFileInterval; // global
+let fromFileInterval; // global
+let fileHandle, contents; // global variables for file handling
 
 /*************************************************************************************************************************************************** */
 
@@ -554,7 +579,7 @@ async function checkForThreeInARow(thisOptions) {
             changeWinnerColors(condition); // change the color of the winning cells to red
             currentGameState.winCondition = condition; // set the win condition to the current condition
             currentGameState.winner = currentGameState.currentPlayer; // set the winner in the current game state
-            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+            // await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
 
             returnValue = 1;
         } 
@@ -590,13 +615,13 @@ async function checkWinner () {
             currentGameState.isPlayerOne[1] = "O";
             currentGameState.isPlayerTwo[1] = "X";
             currentGameState.winner = "O"; // set the winner to O
-            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
         } else if (playerTwo && (currentGameState.winner !== "O")) {
             currentGameState.isPlayerTwo[1] = "O";
             currentGameState.isPlayerOne[1] = "X";
             currentGameState.winner = "O"; // set the winner to O
-            await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
         }
+
+        await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
     }
     else if (!currentGameState.board.includes("")) {
 
@@ -606,6 +631,8 @@ async function checkWinner () {
         DrawMessage(); // call the Draw function to display the draw message
 
         running = false;
+        await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
+
     }
     else if ((playerOne && currentGameState.isPlayerOne[1] === currentGameState.currentPlayer) ||
         (playerTwo && currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer)) {
