@@ -89,7 +89,7 @@ displayStartMessage(); // display the player message to enter a number and roll 
 
 // this is called from and event listener on the startClearButton
 async function startClearToggle() {
-    if (!running && currentGameState.winner === null) {
+    if (!running && firstGame && currentGameState.winner === null) {
         await startingGameInitialization(); // first-time setup
         startClearButton.textContent = "Clear";
         startClearButton.removeEventListener("click", startClearToggle); // remove the event listener for the start button
@@ -102,7 +102,7 @@ async function startClearToggle() {
         // running = true;
     } 
     else {
-        restartGame(); // clears board and stops game
+        await restartGame(); // clears board and stops game
         startClearButton.textContent = "Start";
         // running = false;
     }
@@ -342,7 +342,9 @@ async function ChooseStartingPlayerByRollingDice() {
         return;
     }
     bothPlayersHaveGuessed = true; // set both players have guessed to true
-    currentGameState.diceRoll = Math.floor(Math.random() * 6) + 1;
+    if (currentGameState.diceRoll === null) {
+        currentGameState.diceRoll = Math.floor(Math.random() * 6) + 1;
+    }
 
     const diff1 = Math.abs(currentGameState.diceRoll - currentGameState.playerOneGuess);
     const diff2 = Math.abs(currentGameState.diceRoll - currentGameState.playerTwoGuess);
@@ -423,18 +425,26 @@ async function initGame() {
     }
 
     if (currentGameState.isPlayerOne[1] !== "" && currentGameState.isPlayerTwo[1] !== "") {
-        currentGameState.board = ["", "", "", "", "", "", "", "", "" ]; // reset the board for a new game
-        currentGameState.currentPlayer = currentGameState.winner; // reset the current player to the winner
-        currentGameState.winCondition = null; // reset the win condition
-        // currentGameState.winner = null; // reset the winner
-        currentGameState.playerOneGuess = null; // reset the player one guess
-        currentGameState.playerTwoGuess = null; // reset the player two guess
-        currentGameState.diceRoll = null; // reset the dice roll
+        initGameStateAfterPlaying(); // reinitialize the game state after playing
+        currentGameState.winner = null; // reset the winner
+
         await updateFileGameStateWithFilePicker(); // update the file game state with the file picker
         // alert("Game state reinitialized. You can now play again!"); // alert the user that the game state has been reinitialized
     } else{
         document.getElementById("diceInputSection").style.display = "block"; // show the input box
     }
+}
+
+function initGameStateAfterPlaying() {
+        currentGameState.board = ["", "", "", "", "", "", "", "", "" ]; // reset the board for a new game
+        if (currentGameState.winner !== null) {
+            currentGameState.currentPlayer = currentGameState.winner; // reset the current player to the winner
+        }
+        currentGameState.winCondition = null; // reset the win condition
+        // currentGameState.winner = null; // reset the winner
+        currentGameState.playerOneGuess = null; // reset the player one guess
+        currentGameState.playerTwoGuess = null; // reset the player two guess
+        currentGameState.diceRoll = null; // reset the dice roll
 }
 
 /**
@@ -524,7 +534,17 @@ function updateBoardFromGameState() {
         clearInterval(fromFileInterval); 
         clearInterval(toFileInterval); 
         statusText.textContent = `${currentGameState.currentPlayer} wins! Press Clear to restart game`;
+
         running = false; // set running to false so that the game is not running anymore
+    }
+    else if (!currentGameState.board.includes("")) {
+
+        clearInterval(syncInterval); // clear the interval to stop updating the local status
+        clearInterval(fromFileInterval); 
+        clearInterval(toFileInterval); 
+        statusText.textContent = `Draw! Press Clear to restart game`;
+
+        running = false;
     }
 }
 
@@ -540,8 +560,6 @@ async function checkWinner () {
     roundWon = await checkForThreeInARow(currentGameState.board);
 
     if (roundWon) {
-
-  
 
         clearInterval(syncInterval); // clear the interval to stop updating the local status
         clearInterval(fromFileInterval); 
@@ -564,7 +582,11 @@ async function checkWinner () {
     }
     else if (!currentGameState.board.includes("")) {
 
+        clearInterval(syncInterval); // clear the interval to stop updating the local status
+        clearInterval(fromFileInterval); 
+        clearInterval(toFileInterval); 
         statusText.textContent = `Draw! Press Clear to restart game`;
+
         running = false;
     }
     else if ((playerOne && currentGameState.isPlayerOne[1] === currentGameState.currentPlayer) ||
@@ -670,7 +692,7 @@ function changeBoardVisibility() {
  * sets running and the handicap to false and calls startGame
  */
 
-function restartGame () {
+async function restartGame () {
     running = false; // set running to false so that the game is not running anymore
     cells.forEach(cell => cell.textContent = "");
 
@@ -678,15 +700,18 @@ function restartGame () {
     clearInterval(syncInterval);
     clearInterval(toFileInterval);
     clearInterval(fromFileInterval);
-    // changeBoardVisibility(); // hide the game board
     displayCurrentPlayerForStatusText();
+
 
     startClearButton.textContent = "Start";
 
     if (currentGameState.winner === null) {
         currentGameState.winner = "O";
-        statusText.textContent = `Game restarted. ${currentGameState.winner} automatically won! Press start to play again!`;
+        statusText.textContent = `No winner! Press Start to play again!`;
     }
+
+    initGameStateAfterPlaying(); // reinitialize the game state after playing
+    await updateFileGameStateWithFilePicker(); 
 }
 
 /*****************************************************************************************
