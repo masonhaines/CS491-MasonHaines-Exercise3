@@ -9,3 +9,5 @@ Course 491 summer 2025
 [Github io web page](https://masonhaines.github.io/CS491-MasonHaines-Exercise3/)
 
 
+ERROR, from most recent commit, is still present. Please give time for each browser to fully fully update the state file.
+
