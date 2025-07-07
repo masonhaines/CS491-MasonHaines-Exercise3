@@ -1,7 +1,8 @@
 # CS491-MasonHaines-Exercise3
 Exercise 3 is a good-sized effort in HTML/CSS/JS programming, maintaining state in a JSON file client-side. Specific instructions appear in the document linked below.
 
-MUST HAVE A JSON FILE CALLED "gameState.json"
+MUST HAVE A JSON FILE CALLED INSIDE OF DOWNLOADS "gameState.json"
+copy or cut and paste "gameState.json" into the downloads file and use this file for game state
 
 Course 491 summer 2025 
 
