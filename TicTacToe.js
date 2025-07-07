@@ -676,7 +676,7 @@ async function changePlayer() {
 
 async function prepareGameTurnLogicTick() {
 
-    // this essentially allows either the player or computer to make a move depending on the currentPlayer X or O
+    // 
     if (!playerHasMoved &&
         ((playerOne && currentGameState.isPlayerOne[1] === currentGameState.currentPlayer) ||
         (playerTwo && currentGameState.isPlayerTwo[1] === currentGameState.currentPlayer))) {
@@ -687,9 +687,9 @@ async function prepareGameTurnLogicTick() {
         await updateLocalGameStateWithFilePicker();
         updateBoardFromGameState(); // update the board from the current game state --------------------- NO LOCAL OR FILE UPDATE
 
-        toFileInterval = setInterval(async () => {
-            await updateFileGameStateWithFilePicker();
-        }, 1000);
+        // toFileInterval = setInterval(async () => {
+        //     await updateFileGameStateWithFilePicker();
+        // }, 1000);
 
         playerHasMoved = true;
 
