@@ -769,7 +769,7 @@ async function createGameStateWithinFilePicker() {
     const pickerOptions = {
         types: [{       
             description: 'JSON Files',
-            accept : {'application/json': ['.json']} // this will accept only json files
+            accept : {'json': ['.json']} // this will accept only json files
         }],
         excludeAcceptAllOption: true,
     };
